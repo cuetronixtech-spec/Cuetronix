@@ -79,37 +79,27 @@ $$;
 GRANT EXECUTE ON FUNCTION public.custom_jwt_claims(jsonb) TO supabase_auth_admin;
 
 -- ─────────────────────────────────────────────────────────
--- Helper: extract tenant_id from JWT app_metadata
--- Used internally in RLS policies
+-- Helper: extract tenant_id / role from JWT app_metadata
+-- Defined in public schema (auth schema is not writable via
+-- the Management API — use these in RLS policies instead of
+-- auth.tenant_id() / auth.is_admin() etc.)
 -- ─────────────────────────────────────────────────────────
-CREATE OR REPLACE FUNCTION auth.tenant_id()
-RETURNS uuid
-LANGUAGE sql
-STABLE
-AS $$
+CREATE OR REPLACE FUNCTION public.jwt_tenant_id()
+RETURNS uuid LANGUAGE sql STABLE AS $$
   SELECT (auth.jwt()->'app_metadata'->>'tenant_id')::uuid;
 $$;
 
-CREATE OR REPLACE FUNCTION auth.user_role()
-RETURNS text
-LANGUAGE sql
-STABLE
-AS $$
+CREATE OR REPLACE FUNCTION public.jwt_user_role()
+RETURNS text LANGUAGE sql STABLE AS $$
   SELECT auth.jwt()->'app_metadata'->>'role';
 $$;
 
-CREATE OR REPLACE FUNCTION auth.is_admin_or_manager()
-RETURNS boolean
-LANGUAGE sql
-STABLE
-AS $$
-  SELECT auth.user_role() IN ('admin', 'manager');
+CREATE OR REPLACE FUNCTION public.jwt_is_admin()
+RETURNS boolean LANGUAGE sql STABLE AS $$
+  SELECT (auth.jwt()->'app_metadata'->>'role') = 'admin';
 $$;
 
-CREATE OR REPLACE FUNCTION auth.is_admin()
-RETURNS boolean
-LANGUAGE sql
-STABLE
-AS $$
-  SELECT auth.user_role() = 'admin';
+CREATE OR REPLACE FUNCTION public.jwt_is_admin_or_manager()
+RETURNS boolean LANGUAGE sql STABLE AS $$
+  SELECT (auth.jwt()->'app_metadata'->>'role') IN ('admin', 'manager');
 $$;

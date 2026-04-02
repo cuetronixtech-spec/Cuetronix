@@ -980,6 +980,14 @@ export interface SuperAdminAuditLog {
   created_at: string;
 }
 
+export interface SupportedCurrency {
+  code: string;           // ISO 4217, e.g. 'INR'
+  symbol: string;         // e.g. '₹'
+  name: string;           // e.g. 'Indian Rupee'
+  decimal_places: number; // 0, 2, or 3
+  is_active: boolean;
+}
+
 // ─── Insert types (required fields only for new rows) ─────────────────────────
 
 export type StationInsert = Omit<Station, 'id' | 'created_at' | 'updated_at'> & {
@@ -1063,6 +1071,7 @@ export interface Database {
       investment_transactions:         { Row: InvestmentTransaction;         Insert: Partial<InvestmentTransaction>;       Update: Partial<InvestmentTransaction>; };
       notifications:                   { Row: Notification;                  Insert: Partial<Notification>;                Update: Partial<Notification>; };
       ai_chat_history:                 { Row: AiChatMessage;                 Insert: Partial<AiChatMessage>;               Update: Partial<AiChatMessage>; };
+      supported_currencies:            { Row: SupportedCurrency;             Insert: Partial<SupportedCurrency>;           Update: Partial<SupportedCurrency>; };
     };
     Views: Record<string, never>;
     Functions: {
@@ -1093,6 +1102,10 @@ export interface Database {
       generate_monthly_payroll: {
         Args: { p_tenant_id: string; p_month: number; p_year: number };
         Returns: StaffPayroll[];
+      };
+      get_tenant_currency: {
+        Args: { p_tenant_id: string };
+        Returns: { code: string; symbol: string; name: string; decimal_places: number }[];
       };
     };
     Enums: Record<string, never>;
