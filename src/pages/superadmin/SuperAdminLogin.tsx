@@ -50,15 +50,33 @@ const SuperAdminLogin = () => {
       email: data.email,
       password: data.password,
     });
+
     if (error) {
-      toast.error(error.message);
+      // Translate common Supabase auth error codes to readable messages
+      const msg: Record<string, string> = {
+        invalid_credentials: "Incorrect email or password.",
+        email_not_confirmed: "Please confirm your email before signing in.",
+        unexpected_failure: "A server error occurred. Please try again in a moment.",
+      };
+      toast.error(msg[error.code ?? ""] ?? error.message);
+      return;
+    }
+
+    if (!authData.user) {
+      toast.error("Authentication failed — no user returned.");
       return;
     }
 
     // Verify via SECURITY DEFINER RPC — superadmins table has no client SELECT policy
     const { data: isSA, error: saError } = await supabase.rpc("is_super_admin");
 
-    if (saError || !isSA) {
+    if (saError) {
+      await supabase.auth.signOut();
+      toast.error("Verification failed: " + saError.message);
+      return;
+    }
+
+    if (!isSA) {
       await supabase.auth.signOut();
       toast.error("Access denied. You are not a super admin.");
       return;
