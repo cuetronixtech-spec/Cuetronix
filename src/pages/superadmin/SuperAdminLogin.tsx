@@ -40,15 +40,11 @@ const SuperAdminLogin = () => {
     });
     if (error) { toast.error(error.message); return; }
 
-    // Verify super admin via the superadmins table (RLS policy allows self-select)
-    const { data: sa } = await supabase
-      .from("superadmins")
-      .select("id, is_active")
-      .eq("id", authData.user!.id)
-      .eq("is_active", true)
-      .maybeSingle();
+    // Verify super admin via SECURITY DEFINER RPC (superadmins table has no
+    // client-side SELECT policy — the function bypasses RLS safely).
+    const { data: isSA, error: saError } = await supabase.rpc("is_super_admin");
 
-    if (!sa) {
+    if (saError || !isSA) {
       await supabase.auth.signOut();
       toast.error("Access denied. You are not a super admin.");
       return;
