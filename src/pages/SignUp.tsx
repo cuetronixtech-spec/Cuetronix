@@ -167,6 +167,14 @@ const SignUp = () => {
       return;
     }
 
+    // Explicitly commit the session to the client before calling the RPC.
+    // Without this, auth.uid() inside create_tenant can return NULL because
+    // the JS client hasn't propagated the new JWT to its request headers yet.
+    await supabase.auth.setSession({
+      access_token: authData.session.access_token,
+      refresh_token: authData.session.refresh_token,
+    });
+
     // Auto-confirm path: create tenant immediately
     await finishTenantCreation(pending);
   };
