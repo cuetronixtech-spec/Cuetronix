@@ -147,7 +147,10 @@ const SignUp = () => {
       password: data.password,
       options: {
         data: { full_name: data.yourName },
-        emailRedirectTo: `${window.location.origin}/auth/callback`,
+        // emailRedirectTo is only needed when "Confirm email" is ON in Supabase.
+        // Without a verified sending domain we leave it off to avoid 422 errors.
+        // Re-enable once cuetronix.com is verified in Resend:
+        // emailRedirectTo: `${window.location.origin}/auth/callback`,
       },
     });
 
