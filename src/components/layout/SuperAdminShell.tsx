@@ -1,83 +1,148 @@
-import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
-import { NavLink } from "@/components/NavLink";
-import { Outlet, useNavigate } from "react-router-dom";
-import {
-  Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent,
-  SidebarGroupLabel, SidebarMenu, SidebarMenuButton, SidebarMenuItem,
-  useSidebar,
-} from "@/components/ui/sidebar";
-import { LayoutDashboard, Building2, DollarSign, CreditCard, Megaphone, FileSearch, LogOut } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { useNavigate, NavLink, Outlet } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { SA_FLAG } from "@/pages/superadmin/SuperAdminLogin";
+import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
+import {
+  LayoutDashboard,
+  Building2,
+  TrendingUp,
+  CreditCard,
+  Megaphone,
+  ScrollText,
+  LogOut,
+  Shield,
+  Menu,
+  X,
+} from "lucide-react";
+import { useState } from "react";
 
-const items = [
-  { title: "Dashboard", url: "/super-admin", icon: LayoutDashboard },
-  { title: "Tenants", url: "/super-admin/tenants", icon: Building2 },
-  { title: "Revenue", url: "/super-admin/revenue", icon: DollarSign },
-  { title: "Plans", url: "/super-admin/plans", icon: CreditCard },
-  { title: "Broadcast", url: "/super-admin/broadcast", icon: Megaphone },
-  { title: "Audit Log", url: "/super-admin/audit-log", icon: FileSearch },
+const NAV = [
+  { to: "/super-admin",            label: "Dashboard",  icon: LayoutDashboard, exact: true },
+  { to: "/super-admin/tenants",    label: "Tenants",    icon: Building2 },
+  { to: "/super-admin/revenue",    label: "Revenue",    icon: TrendingUp },
+  { to: "/super-admin/plans",      label: "Plans",      icon: CreditCard },
+  { to: "/super-admin/broadcast",  label: "Broadcast",  icon: Megaphone },
+  { to: "/super-admin/audit-log",  label: "Audit Log",  icon: ScrollText },
 ];
-
-function SANav() {
-  const { state } = useSidebar();
-  const collapsed = state === "collapsed";
-  return (
-    <Sidebar collapsible="icon">
-      <SidebarContent>
-        <div className="p-4">
-          <h1 className={`font-bold text-xl text-primary ${collapsed ? "text-center text-sm" : ""}`}>
-            {collapsed ? "SA" : "Super Admin"}
-          </h1>
-        </div>
-        <SidebarGroup>
-          <SidebarGroupLabel>Management</SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              {items.map((item) => (
-                <SidebarMenuItem key={item.title}>
-                  <SidebarMenuButton asChild>
-                    <NavLink to={item.url} end={item.url === "/super-admin"} className="hover:bg-muted/50" activeClassName="bg-muted text-primary font-medium">
-                      <item.icon className="mr-2 h-4 w-4" />
-                      {!collapsed && <span>{item.title}</span>}
-                    </NavLink>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
-      </SidebarContent>
-    </Sidebar>
-  );
-}
 
 const SuperAdminShell = () => {
   const navigate = useNavigate();
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+
   const handleSignOut = async () => {
     sessionStorage.removeItem(SA_FLAG);
     await supabase.auth.signOut();
     navigate("/super-admin/login", { replace: true });
   };
-  return (
-  <SidebarProvider>
-    <div className="min-h-screen flex w-full">
-      <SANav />
-      <div className="flex-1 flex flex-col min-w-0">
-        <header className="h-14 border-b flex items-center px-4 bg-background gap-3">
-          <SidebarTrigger />
-          <span className="ml-2 font-semibold text-foreground flex-1">Super Admin Panel</span>
-          <Button variant="ghost" size="sm" onClick={handleSignOut} className="text-muted-foreground hover:text-foreground">
-            <LogOut className="h-4 w-4 mr-1.5" />Sign out
+
+  const Sidebar = ({ mobile = false }: { mobile?: boolean }) => (
+    <div className={cn(
+      "flex flex-col h-full bg-card border-r border-border",
+      mobile ? "w-72" : "w-64"
+    )}>
+      {/* Logo */}
+      <div className="flex items-center gap-3 px-5 py-5 border-b border-border">
+        <div className="flex items-center justify-center h-8 w-8 rounded-lg bg-primary/10">
+          <Shield className="h-4 w-4 text-primary" />
+        </div>
+        <div>
+          <p className="font-semibold text-sm text-foreground">Cuetronix</p>
+          <p className="text-xs text-muted-foreground">Super Admin</p>
+        </div>
+        {mobile && (
+          <Button
+            variant="ghost"
+            size="icon"
+            className="ml-auto h-7 w-7"
+            onClick={() => setSidebarOpen(false)}
+          >
+            <X className="h-4 w-4" />
           </Button>
+        )}
+      </div>
+
+      {/* Nav */}
+      <nav className="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto">
+        {NAV.map(({ to, label, icon: Icon, exact }) => (
+          <NavLink
+            key={to}
+            to={to}
+            end={exact}
+            onClick={() => setSidebarOpen(false)}
+            className={({ isActive }) =>
+              cn(
+                "flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors",
+                isActive
+                  ? "bg-primary text-primary-foreground"
+                  : "text-muted-foreground hover:bg-accent hover:text-foreground"
+              )
+            }
+          >
+            <Icon className="h-4 w-4 shrink-0" />
+            {label}
+          </NavLink>
+        ))}
+      </nav>
+
+      {/* Sign out */}
+      <div className="p-3 border-t border-border">
+        <Button
+          variant="ghost"
+          className="w-full justify-start gap-3 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+          onClick={handleSignOut}
+        >
+          <LogOut className="h-4 w-4" />
+          Sign Out
+        </Button>
+      </div>
+    </div>
+  );
+
+  return (
+    <div className="flex h-screen bg-background overflow-hidden">
+      {/* Desktop sidebar */}
+      <div className="hidden md:flex flex-col shrink-0">
+        <Sidebar />
+      </div>
+
+      {/* Mobile sidebar overlay */}
+      {sidebarOpen && (
+        <div className="fixed inset-0 z-50 md:hidden">
+          <div
+            className="absolute inset-0 bg-black/50"
+            onClick={() => setSidebarOpen(false)}
+          />
+          <div className="relative h-full">
+            <Sidebar mobile />
+          </div>
+        </div>
+      )}
+
+      {/* Main content */}
+      <div className="flex-1 flex flex-col overflow-hidden">
+        {/* Mobile header */}
+        <header className="md:hidden flex items-center gap-3 px-4 py-3 border-b border-border bg-card shrink-0">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8"
+            onClick={() => setSidebarOpen(true)}
+          >
+            <Menu className="h-4 w-4" />
+          </Button>
+          <div className="flex items-center gap-2">
+            <Shield className="h-4 w-4 text-primary" />
+            <span className="font-semibold text-sm">Super Admin</span>
+          </div>
         </header>
-        <main className="flex-1 p-4 md:p-6">
+
+        {/* Page content */}
+        <main className="flex-1 overflow-y-auto">
           <Outlet />
         </main>
       </div>
     </div>
-  </SidebarProvider>
   );
 };
 

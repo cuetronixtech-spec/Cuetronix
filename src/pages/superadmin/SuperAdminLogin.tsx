@@ -15,8 +15,8 @@ import { Shield, Loader2 } from "lucide-react";
 export const SA_FLAG = "_cuetronix_sa";
 
 const schema = z.object({
-  email: z.string().email(),
-  password: z.string().min(6),
+  email: z.string().email("Enter a valid email"),
+  password: z.string().min(6, "Password must be at least 6 characters"),
 });
 type Form = z.infer<typeof schema>;
 
@@ -24,9 +24,21 @@ const SuperAdminLogin = () => {
   const navigate = useNavigate();
   const { session, loading: authLoading } = useAuth();
   const [saVerified, setSaVerified] = useState(false);
-  const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm<Form>({ resolver: zodResolver(schema) });
 
-  // Navigate once AuthContext has the session AND we've verified SA status
+  const {
+    register,
+    handleSubmit,
+    formState: { errors, isSubmitting },
+  } = useForm<Form>({ resolver: zodResolver(schema) });
+
+  // If already verified SA in this session, skip to dashboard
+  useEffect(() => {
+    if (!authLoading && session && sessionStorage.getItem(SA_FLAG) === "1") {
+      navigate("/super-admin", { replace: true });
+    }
+  }, [authLoading, session, navigate]);
+
+  // Navigate once auth propagates after fresh login
   useEffect(() => {
     if (saVerified && !authLoading && session) {
       navigate("/super-admin", { replace: true });
@@ -38,10 +50,12 @@ const SuperAdminLogin = () => {
       email: data.email,
       password: data.password,
     });
-    if (error) { toast.error(error.message); return; }
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
 
-    // Verify super admin via SECURITY DEFINER RPC (superadmins table has no
-    // client-side SELECT policy — the function bypasses RLS safely).
+    // Verify via SECURITY DEFINER RPC — superadmins table has no client SELECT policy
     const { data: isSA, error: saError } = await supabase.rpc("is_super_admin");
 
     if (saError || !isSA) {
@@ -50,10 +64,8 @@ const SuperAdminLogin = () => {
       return;
     }
 
-    // Persist flag so RequireSuperAdmin guard can verify without async DB call
     sessionStorage.setItem(SA_FLAG, "1");
     setSaVerified(true);
-    // useEffect above will navigate once session propagates into AuthContext
   };
 
   return (
@@ -66,6 +78,7 @@ const SuperAdminLogin = () => {
           <h1 className="text-2xl font-bold text-foreground">Admin Panel</h1>
           <p className="text-sm text-muted-foreground mt-1">Cuetronix platform administration</p>
         </div>
+
         <Card className="border-border/50 shadow-xl shadow-primary/5">
           <CardHeader className="text-center pb-2">
             <CardTitle className="text-lg">Sign in</CardTitle>
@@ -84,7 +97,11 @@ const SuperAdminLogin = () => {
                 {errors.password && <p className="text-xs text-destructive">{errors.password.message}</p>}
               </div>
               <Button className="w-full" type="submit" disabled={isSubmitting}>
-                {isSubmitting ? <><Loader2 className="h-4 w-4 animate-spin mr-2" />Signing in…</> : "Sign In"}
+                {isSubmitting ? (
+                  <><Loader2 className="h-4 w-4 animate-spin mr-2" />Verifying…</>
+                ) : (
+                  "Sign In"
+                )}
               </Button>
             </form>
           </CardContent>

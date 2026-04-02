@@ -1,177 +1,341 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { PageHeader } from "@/components/shared/PageHeader";
+import { toast } from "sonner";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Badge } from "@/components/ui/badge";
-import { toast } from "sonner";
-import { Plus, Pencil, Trash2, Check } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
-  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import { Plus, Pencil, Trash2, Users, Monitor, UserCheck, RefreshCw } from "lucide-react";
+import { format } from "date-fns";
 
 interface Plan {
   id: string;
   name: string;
-  slug: string;
-  price_inr: number | null;
-  price_usd: number | null;
-  max_stations: number | null;
-  max_staff: number | null;
-  features: Record<string, boolean>;
+  slug: string | null;
+  price_monthly: number;
+  price_annual: number;
+  currency: string;
+  max_staff: number;
+  max_stations: number;
+  max_customers: number;
+  features: string[];
   is_active: boolean;
+  display_order: number;
+  created_at: string;
 }
 
-const defaultFeatures = {
-  tournaments: false, expenses: false, cash_management: false,
-  investors: false, ai_assistant: false, custom_domain: false,
-  api_access: false, white_label: false, priority_support: false,
+const EMPTY_FORM = {
+  name: "",
+  price_monthly: "",
+  price_annual: "",
+  currency: "INR",
+  max_staff: "5",
+  max_stations: "5",
+  max_customers: "500",
+  features: "",
+  is_active: true,
+  display_order: "0",
 };
 
-const SAPlans = () => {
+export default function SAPlans() {
   const [plans, setPlans] = useState<Plan[]>([]);
   const [loading, setLoading] = useState(true);
-  const [open, setOpen] = useState(false);
-  const [editing, setEditing] = useState<Plan | null>(null);
-  const [form, setForm] = useState({ name: "", slug: "", price_inr: "", price_usd: "", max_stations: "", max_staff: "", features: { ...defaultFeatures } });
+  const [error, setError] = useState<string | null>(null);
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [form, setForm] = useState(EMPTY_FORM);
+  const [saving, setSaving] = useState(false);
 
   const load = async () => {
     setLoading(true);
-    const { data } = await supabase.from("subscription_plans").select("*").order("price_inr");
-    setPlans((data ?? []) as Plan[]);
+    setError(null);
+    const { data, error } = await supabase.rpc("sa_list_plans");
+    if (error) setError(error.message);
+    else setPlans((data as Plan[]) ?? []);
     setLoading(false);
   };
 
   useEffect(() => { load(); }, []);
 
-  const openNew = () => {
-    setEditing(null);
-    setForm({ name: "", slug: "", price_inr: "", price_usd: "", max_stations: "", max_staff: "", features: { ...defaultFeatures } });
-    setOpen(true);
+  const openCreate = () => {
+    setEditingId(null);
+    setForm(EMPTY_FORM);
+    setDialogOpen(true);
   };
 
   const openEdit = (p: Plan) => {
-    setEditing(p);
+    setEditingId(p.id);
     setForm({
-      name: p.name, slug: p.slug,
-      price_inr: String(p.price_inr ?? ""), price_usd: String(p.price_usd ?? ""),
-      max_stations: String(p.max_stations ?? ""), max_staff: String(p.max_staff ?? ""),
-      features: { ...defaultFeatures, ...(p.features as Record<string, boolean>) },
+      name: p.name,
+      price_monthly: p.price_monthly.toString(),
+      price_annual: p.price_annual.toString(),
+      currency: p.currency,
+      max_staff: p.max_staff.toString(),
+      max_stations: p.max_stations.toString(),
+      max_customers: p.max_customers.toString(),
+      features: Array.isArray(p.features) ? p.features.join(", ") : "",
+      is_active: p.is_active,
+      display_order: p.display_order?.toString() ?? "0",
     });
-    setOpen(true);
+    setDialogOpen(true);
   };
 
   const save = async () => {
-    const payload = {
-      name: form.name, slug: form.slug || form.name.toLowerCase().replace(/\s+/g, "-"),
-      price_inr: form.price_inr ? Number(form.price_inr) : null,
-      price_usd: form.price_usd ? Number(form.price_usd) : null,
-      max_stations: form.max_stations ? Number(form.max_stations) : null,
-      max_staff: form.max_staff ? Number(form.max_staff) : null,
-      features: form.features,
-    };
-    const { error } = editing
-      ? await supabase.from("subscription_plans").update(payload).eq("id", editing.id)
-      : await supabase.from("subscription_plans").insert(payload);
-    if (error) toast.error(error.message);
-    else { toast.success(editing ? "Plan updated" : "Plan created"); setOpen(false); load(); }
+    if (!form.name.trim()) { toast.error("Plan name is required"); return; }
+    setSaving(true);
+    const features = form.features.split(",").map((f) => f.trim()).filter(Boolean);
+    const { error } = await supabase.rpc("sa_upsert_plan", {
+      p_name:          form.name.trim(),
+      p_price_monthly: parseFloat(form.price_monthly) || 0,
+      p_price_annual:  parseFloat(form.price_annual) || 0,
+      p_currency:      form.currency,
+      p_max_staff:     parseInt(form.max_staff) || 5,
+      p_max_stations:  parseInt(form.max_stations) || 5,
+      p_max_customers: parseInt(form.max_customers) || 500,
+      p_features:      features,
+      p_is_active:     form.is_active,
+      p_display_order: parseInt(form.display_order) || 0,
+      p_id:            editingId ?? undefined,
+    });
+    if (error) {
+      toast.error("Failed: " + error.message);
+    } else {
+      toast.success(editingId ? "Plan updated" : "Plan created");
+      setDialogOpen(false);
+      load();
+    }
+    setSaving(false);
   };
 
   const deletePlan = async (id: string) => {
-    if (!confirm("Delete this plan?")) return;
-    await supabase.from("subscription_plans").delete().eq("id", id);
-    load();
+    const { error } = await supabase.rpc("sa_delete_plan", { p_plan_id: id });
+    if (error) toast.error("Failed: " + error.message);
+    else {
+      toast.success("Plan deleted");
+      setPlans((prev) => prev.filter((p) => p.id !== id));
+    }
   };
 
-  const featureLabels: Record<string, string> = {
-    tournaments: "Tournaments", expenses: "Expenses", cash_management: "Cash Mgmt",
-    investors: "Investors", ai_assistant: "AI Assistant", custom_domain: "Custom Domain",
-    api_access: "API Access", white_label: "White Label", priority_support: "Priority Support",
-  };
+  const field = (key: keyof typeof EMPTY_FORM) =>
+    typeof form[key] === "string"
+      ? { value: form[key] as string, onChange: (e: React.ChangeEvent<HTMLInputElement>) => setForm((f) => ({ ...f, [key]: e.target.value })) }
+      : {};
 
   return (
-    <div>
-      <PageHeader title="Subscription Plans" description="Manage platform pricing plans"
-        action={<Button size="sm" onClick={openNew}><Plus className="h-4 w-4 mr-1.5" />New Plan</Button>} />
+    <div className="p-6 space-y-6 max-w-5xl mx-auto">
+      <div className="flex items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-foreground">Subscription Plans</h1>
+          <p className="text-sm text-muted-foreground mt-0.5">Manage pricing plans for clubs</p>
+        </div>
+        <div className="flex gap-2">
+          <Button variant="outline" size="sm" onClick={load} disabled={loading}>
+            <RefreshCw className={`h-4 w-4 mr-2 ${loading ? "animate-spin" : ""}`} />
+            Refresh
+          </Button>
+          <Button size="sm" onClick={openCreate}>
+            <Plus className="h-4 w-4 mr-2" />New Plan
+          </Button>
+        </div>
+      </div>
 
-      {loading ? <p className="text-muted-foreground py-8 text-sm">Loading…</p> : (
-        <div className="grid md:grid-cols-3 gap-4">
-          {plans.map(plan => (
-            <Card key={plan.id} className={`border-border/50 ${!plan.is_active ? "opacity-60" : ""}`}>
-              <CardHeader className="pb-3">
-                <div className="flex items-start justify-between">
-                  <div>
-                    <CardTitle className="text-base">{plan.name}</CardTitle>
-                    <p className="text-xs text-muted-foreground mt-0.5">/{plan.slug}</p>
-                  </div>
-                  <Badge variant="outline" className={plan.is_active ? "text-green-400 border-green-500/30" : "text-muted-foreground"}>{plan.is_active ? "Active" : "Inactive"}</Badge>
+      {error && (
+        <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-4 text-sm text-destructive">
+          {error}
+        </div>
+      )}
+
+      {loading ? (
+        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {[...Array(3)].map((_, i) => <Skeleton key={i} className="h-52 w-full" />)}
+        </div>
+      ) : plans.length === 0 ? (
+        <Card className="border-border/50 border-dashed">
+          <CardContent className="flex flex-col items-center justify-center py-16 text-center">
+            <Plus className="h-10 w-10 text-muted-foreground/40 mb-3" />
+            <p className="text-sm font-medium text-foreground">No plans yet</p>
+            <p className="text-xs text-muted-foreground mt-1">Create your first subscription plan</p>
+            <Button className="mt-4" size="sm" onClick={openCreate}>Create Plan</Button>
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {plans.map((p) => (
+            <Card key={p.id} className={`border-border/50 relative ${!p.is_active ? "opacity-60" : ""}`}>
+              {!p.is_active && (
+                <div className="absolute top-3 right-3">
+                  <span className="text-xs px-2 py-0.5 rounded-full border bg-zinc-500/10 text-zinc-400 border-zinc-500/20">
+                    Inactive
+                  </span>
                 </div>
-                <div className="mt-2 space-y-0.5">
-                  <p className="text-sm"><span className="font-semibold">₹{plan.price_inr ?? "—"}</span><span className="text-muted-foreground text-xs">/mo</span></p>
-                  {plan.price_usd && <p className="text-xs text-muted-foreground">${plan.price_usd}/mo</p>}
+              )}
+              <CardHeader className="pb-2">
+                <CardTitle className="text-base">{p.name}</CardTitle>
+                <div className="flex items-baseline gap-1">
+                  <span className="text-2xl font-bold text-foreground">
+                    {p.currency === "INR" ? "₹" : p.currency}{p.price_monthly.toLocaleString()}
+                  </span>
+                  <span className="text-xs text-muted-foreground">/mo</span>
                 </div>
+                {p.price_annual > 0 && (
+                  <p className="text-xs text-muted-foreground">
+                    {p.currency === "INR" ? "₹" : p.currency}{p.price_annual.toLocaleString()}/year
+                  </p>
+                )}
               </CardHeader>
               <CardContent className="space-y-3">
-                <div className="flex gap-4 text-xs text-muted-foreground">
-                  <span>Stations: {plan.max_stations ?? "∞"}</span>
-                  <span>Staff: {plan.max_staff ?? "∞"}</span>
+                <div className="grid grid-cols-3 gap-2 text-center text-xs">
+                  <div className="rounded-lg bg-muted/50 p-2">
+                    <Users className="h-3 w-3 mx-auto mb-1 text-muted-foreground" />
+                    <p className="font-medium text-foreground">{p.max_staff}</p>
+                    <p className="text-muted-foreground">Staff</p>
+                  </div>
+                  <div className="rounded-lg bg-muted/50 p-2">
+                    <Monitor className="h-3 w-3 mx-auto mb-1 text-muted-foreground" />
+                    <p className="font-medium text-foreground">{p.max_stations}</p>
+                    <p className="text-muted-foreground">Stations</p>
+                  </div>
+                  <div className="rounded-lg bg-muted/50 p-2">
+                    <UserCheck className="h-3 w-3 mx-auto mb-1 text-muted-foreground" />
+                    <p className="font-medium text-foreground">{p.max_customers}</p>
+                    <p className="text-muted-foreground">Customers</p>
+                  </div>
                 </div>
-                <div className="flex flex-wrap gap-1">
-                  {Object.entries(plan.features ?? {}).filter(([,v]) => v).map(([k]) => (
-                    <Badge key={k} variant="outline" className="text-[10px] py-0"><Check className="h-2.5 w-2.5 mr-0.5" />{featureLabels[k] ?? k}</Badge>
-                  ))}
-                </div>
+
+                {Array.isArray(p.features) && p.features.length > 0 && (
+                  <ul className="space-y-1">
+                    {p.features.slice(0, 4).map((f, i) => (
+                      <li key={i} className="text-xs text-muted-foreground flex items-center gap-1.5">
+                        <span className="h-1 w-1 rounded-full bg-primary shrink-0" />
+                        {f}
+                      </li>
+                    ))}
+                    {p.features.length > 4 && (
+                      <li className="text-xs text-muted-foreground">+{p.features.length - 4} more</li>
+                    )}
+                  </ul>
+                )}
+
+                <p className="text-xs text-muted-foreground">
+                  Created {format(new Date(p.created_at), "dd MMM yyyy")}
+                </p>
+
                 <div className="flex gap-2 pt-1">
-                  <Button variant="outline" size="sm" className="flex-1" onClick={() => openEdit(plan)}>
-                    <Pencil className="h-3.5 w-3.5 mr-1" />Edit
+                  <Button variant="outline" size="sm" className="flex-1" onClick={() => openEdit(p)}>
+                    <Pencil className="h-3.5 w-3.5 mr-1.5" />Edit
                   </Button>
-                  <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive" onClick={() => deletePlan(plan.id)}>
-                    <Trash2 className="h-3.5 w-3.5" />
-                  </Button>
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button variant="ghost" size="sm" className="text-destructive hover:bg-destructive/10">
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>Delete "{p.name}"?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          This permanently deletes the plan. Existing subscribers won't be affected but new signups won't see it.
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction
+                          className="bg-destructive hover:bg-destructive/90"
+                          onClick={() => deletePlan(p.id)}
+                        >
+                          Delete
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
                 </div>
               </CardContent>
             </Card>
           ))}
-          {plans.length === 0 && <p className="text-muted-foreground text-sm col-span-3">No plans yet. Create one above.</p>}
         </div>
       )}
 
-      <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="max-w-md">
+      {/* Create / Edit dialog */}
+      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>{editing ? "Edit Plan" : "New Plan"}</DialogTitle>
+            <DialogTitle>{editingId ? "Edit Plan" : "New Plan"}</DialogTitle>
           </DialogHeader>
-          <div className="space-y-3 py-2">
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1"><Label className="text-xs">Name</Label><Input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} /></div>
-              <div className="space-y-1"><Label className="text-xs">Slug</Label><Input value={form.slug} onChange={e => setForm(f => ({ ...f, slug: e.target.value }))} placeholder="auto-generated" /></div>
-              <div className="space-y-1"><Label className="text-xs">Price (INR/mo)</Label><Input type="number" value={form.price_inr} onChange={e => setForm(f => ({ ...f, price_inr: e.target.value }))} /></div>
-              <div className="space-y-1"><Label className="text-xs">Price (USD/mo)</Label><Input type="number" value={form.price_usd} onChange={e => setForm(f => ({ ...f, price_usd: e.target.value }))} /></div>
-              <div className="space-y-1"><Label className="text-xs">Max Stations</Label><Input type="number" value={form.max_stations} onChange={e => setForm(f => ({ ...f, max_stations: e.target.value }))} placeholder="blank = ∞" /></div>
-              <div className="space-y-1"><Label className="text-xs">Max Staff</Label><Input type="number" value={form.max_staff} onChange={e => setForm(f => ({ ...f, max_staff: e.target.value }))} placeholder="blank = ∞" /></div>
-            </div>
-            <div>
-              <Label className="text-xs mb-2 block">Features</Label>
-              <div className="grid grid-cols-2 gap-1.5">
-                {Object.keys(defaultFeatures).map(k => (
-                  <label key={k} className="flex items-center gap-2 text-xs cursor-pointer">
-                    <input type="checkbox" checked={!!form.features[k as keyof typeof form.features]} onChange={e => setForm(f => ({ ...f, features: { ...f.features, [k]: e.target.checked } }))} className="accent-primary" />
-                    {featureLabels[k]}
-                  </label>
-                ))}
+          <div className="space-y-4 py-2">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="col-span-2 space-y-1.5">
+                <Label>Plan Name *</Label>
+                <Input placeholder="e.g. Starter" {...field("name")} />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Monthly Price</Label>
+                <Input type="number" placeholder="1499" {...field("price_monthly")} />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Annual Price</Label>
+                <Input type="number" placeholder="14999" {...field("price_annual")} />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Currency</Label>
+                <Input placeholder="INR" {...field("currency")} />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Display Order</Label>
+                <Input type="number" placeholder="0" {...field("display_order")} />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Max Staff</Label>
+                <Input type="number" {...field("max_staff")} />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Max Stations</Label>
+                <Input type="number" {...field("max_stations")} />
+              </div>
+              <div className="col-span-2 space-y-1.5">
+                <Label>Max Customers</Label>
+                <Input type="number" {...field("max_customers")} />
+              </div>
+              <div className="col-span-2 space-y-1.5">
+                <Label>Features <span className="text-muted-foreground text-xs">(comma-separated)</span></Label>
+                <Input placeholder="Tournaments, Bookings, AI Assistant" {...field("features")} />
+              </div>
+              <div className="col-span-2 flex items-center gap-3">
+                <Switch
+                  checked={form.is_active}
+                  onCheckedChange={(v) => setForm((f) => ({ ...f, is_active: v }))}
+                />
+                <Label>Active (visible to new signups)</Label>
               </div>
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
-            <Button onClick={save}>{editing ? "Save" : "Create"}</Button>
+            <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancel</Button>
+            <Button onClick={save} disabled={saving}>
+              {saving ? "Saving…" : editingId ? "Save Changes" : "Create Plan"}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>
   );
-};
-
-export default SAPlans;
+}
