@@ -54,12 +54,12 @@ export const RequireActiveSubscription = ({
 };
 
 // ─── RequireSuperAdmin ────────────────────────────────────────────────────────
-// Basic session check; the SuperAdminLogin page does the superadmins table check.
 
 export const RequireSuperAdmin = ({ children }: { children: ReactNode }) => {
-  const { session, loading } = useAuth();
+  const { session, appMeta, loading } = useAuth();
   if (loading) return <Spinner />;
   if (!session) return <Navigate to="/super-admin/login" replace />;
+  if (appMeta.role !== "super_admin") return <Navigate to="/super-admin/login" replace />;
   return <>{children}</>;
 };
 

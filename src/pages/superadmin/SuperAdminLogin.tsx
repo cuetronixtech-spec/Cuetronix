@@ -28,15 +28,11 @@ const SuperAdminLogin = () => {
     });
     if (error) { toast.error(error.message); return; }
 
-    // Verify superadmin status
-    const { data: sa } = await supabase
-      .from("superadmins")
-      .select("id, is_active")
-      .eq("id", authData.user.id)
-      .eq("is_active", true)
-      .maybeSingle();
-
-    if (!sa) {
+    // The custom_jwt_claims hook injects role:"super_admin" into app_metadata
+    // for users in the superadmins table. Check the decoded JWT claim directly
+    // — more reliable than a second DB round-trip with potential RLS issues.
+    const role = authData.session?.user?.app_metadata?.role;
+    if (role !== "super_admin") {
       await supabase.auth.signOut();
       toast.error("Access denied. You are not a super admin.");
       return;

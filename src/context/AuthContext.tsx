@@ -12,7 +12,7 @@ import { supabase } from "@/integrations/supabase/client";
 
 export interface AppMetadata {
   tenant_id?: string;
-  role?: "admin" | "manager" | "staff" | "customer";
+  role?: "admin" | "manager" | "staff" | "customer" | "super_admin";
   subscription_status?: string;
   plan_slug?: string;
   plan_max_stations?: number | null;
