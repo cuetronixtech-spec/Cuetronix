@@ -49,7 +49,7 @@ BEGIN
         COALESCE(claims->'app_metadata', '{}') || '{"role":"super_admin"}'::jsonb
       );
     END IF;
-    RETURN claims;
+    RETURN jsonb_build_object('claims', claims);
   END IF;
 
   -- Fetch plan features
