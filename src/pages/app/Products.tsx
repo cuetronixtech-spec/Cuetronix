@@ -31,7 +31,7 @@ type Product = {
 };
 
 const blankProduct = () => ({
-  name: "", category_id: "", price: "", cost_price: "", sku: "", stock: "0", low_stock_threshold: "5", track_stock: true, is_active: true,
+  name: "", category_id: "__none__", price: "", cost_price: "", sku: "", stock: "0", low_stock_threshold: "5", track_stock: true, is_active: true,
 });
 
 export default function Products() {
@@ -74,7 +74,7 @@ export default function Products() {
   const openEdit = (p: Product) => {
     setEditing(p);
     setForm({
-      name: p.name, category_id: p.category_id || "", price: String(p.price),
+      name: p.name, category_id: p.category_id || "__none__", price: String(p.price),
       cost_price: p.cost_price != null ? String(p.cost_price) : "", sku: p.sku || "",
       stock: String(p.stock), low_stock_threshold: String(p.low_stock_threshold),
       track_stock: p.track_stock, is_active: p.is_active,
@@ -88,7 +88,7 @@ export default function Products() {
     const payload = {
       tenant_id: tenantId,
       name: form.name.trim(),
-      category_id: form.category_id || null,
+      category_id: (form.category_id && form.category_id !== "__none__") ? form.category_id : null,
       price: parseFloat(form.price) || 0,
       cost_price: form.cost_price ? parseFloat(form.cost_price) : null,
       sku: form.sku.trim() || null,
@@ -204,10 +204,10 @@ export default function Products() {
           <div className="space-y-3 py-2">
             <div><Label>Name *</Label><Input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} /></div>
             <div><Label>Category</Label>
-              <Select value={form.category_id} onValueChange={v => setForm(f => ({ ...f, category_id: v }))}>
+              <Select value={form.category_id || "__none__"} onValueChange={v => setForm(f => ({ ...f, category_id: v === "__none__" ? "" : v }))}>
                 <SelectTrigger><SelectValue placeholder="Select category" /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">None</SelectItem>
+                  <SelectItem value="__none__">None</SelectItem>
                   {categories.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
                 </SelectContent>
               </Select>

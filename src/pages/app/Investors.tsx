@@ -263,7 +263,7 @@ export default function Investors() {
           <div className="space-y-3 py-2">
             <div>
               <Label>Partner *</Label>
-              <Select value={tForm.partner_id} onValueChange={v => setTForm(f => ({ ...f, partner_id: v }))}>
+              <Select value={tForm.partner_id || undefined} onValueChange={v => setTForm(f => ({ ...f, partner_id: v }))}>
                 <SelectTrigger className="mt-1.5"><SelectValue placeholder="Select partner" /></SelectTrigger>
                 <SelectContent>{partners.map(p => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}</SelectContent>
               </Select>

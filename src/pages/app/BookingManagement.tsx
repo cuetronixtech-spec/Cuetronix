@@ -213,7 +213,7 @@ export default function BookingManagement() {
             </div>
             <div>
               <Label>Station *</Label>
-              <Select value={form.station_id} onValueChange={v => setForm(f => ({ ...f, station_id: v }))}>
+              <Select value={form.station_id || undefined} onValueChange={v => setForm(f => ({ ...f, station_id: v }))}>
                 <SelectTrigger className="mt-1.5"><SelectValue placeholder="Select station" /></SelectTrigger>
                 <SelectContent>{stations.map(s => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}</SelectContent>
               </Select>
