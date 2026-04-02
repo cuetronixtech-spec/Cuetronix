@@ -1,23 +1,28 @@
 import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
+import { PENDING_TENANT_KEY } from "./SignUp";
 
 /**
- * Handles the redirect after Google OAuth (or any Supabase OAuth provider).
+ * Landing page for:
+ *  1. Google OAuth redirect (code exchange)
+ *  2. Email confirmation redirect (after clicking the link in the signup email)
  *
- * Supabase automatically exchanges the ?code= query parameter for a session
- * when `detectSessionInUrl: true` is set on the client (it is, in client.ts).
- * We just need to wait for that to complete then route the user appropriately:
- *
- *   - Has tenant_id in JWT  →  /dashboard
- *   - No tenant_id yet      →  /signup  (new Google user, needs to create their club)
+ * In both cases Supabase has already exchanged the URL fragment / code for a
+ * session (detectSessionInUrl: true on the client).  We then:
+ *   a) If sessionStorage has pending tenant data → create the tenant and go to /onboarding
+ *   b) If the user already has a tenant_id in their JWT → go to /dashboard
+ *   c) Otherwise → back to /signup (new Google user who skipped tenant creation)
  */
 const AuthCallback = () => {
   const navigate = useNavigate();
 
   useEffect(() => {
-    // Give Supabase a moment to finish exchanging the code for a session
-    const checkSession = async () => {
+    const handleCallback = async () => {
+      // Supabase needs a moment to finish exchanging the code/hash for a session
+      await new Promise((r) => setTimeout(r, 400));
+
       const {
         data: { session },
       } = await supabase.auth.getSession();
@@ -27,26 +32,65 @@ const AuthCallback = () => {
         return;
       }
 
-      const tenantId = session.user.app_metadata?.tenant_id;
+      // Check for pending tenant data left by SignUp.tsx before email was sent
+      const raw = sessionStorage.getItem(PENDING_TENANT_KEY);
+      if (raw) {
+        try {
+          const pending = JSON.parse(raw) as {
+            slug: string;
+            clubName: string;
+            country: string;
+            email: string;
+            yourName: string;
+          };
 
+          const { error } = await supabase.rpc("create_tenant", {
+            p_slug: pending.slug,
+            p_name: pending.clubName,
+            p_country: pending.country,
+            p_owner_email: pending.email,
+          });
+
+          if (error) {
+            // Slug might already exist if user confirmed twice — check
+            if (error.message?.includes("duplicate") || error.message?.includes("already")) {
+              toast.info("Your club was already created. Taking you to the dashboard.");
+            } else {
+              toast.error("Could not create your club: " + error.message);
+              navigate("/signup", { replace: true });
+              return;
+            }
+          } else {
+            toast.success(`Welcome to Cuetronix, ${pending.yourName}!`);
+          }
+
+          sessionStorage.removeItem(PENDING_TENANT_KEY);
+          // Refresh session so the JWT now carries the new tenant_id claim
+          await supabase.auth.refreshSession();
+          navigate("/onboarding", { replace: true });
+          return;
+        } catch {
+          sessionStorage.removeItem(PENDING_TENANT_KEY);
+        }
+      }
+
+      // No pending tenant — route based on whether the user already has one
+      const tenantId = session.user.app_metadata?.tenant_id;
       if (tenantId) {
         navigate("/dashboard", { replace: true });
       } else {
-        // New Google sign-in — the user has no tenant yet
         navigate("/signup", { replace: true });
       }
     };
 
-    // Small delay lets Supabase finish URL-hash/code-exchange processing
-    const timer = setTimeout(checkSession, 300);
-    return () => clearTimeout(timer);
+    handleCallback();
   }, [navigate]);
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-background">
       <div className="flex flex-col items-center gap-3">
         <div className="h-8 w-8 rounded-full border-2 border-primary border-t-transparent animate-spin" />
-        <p className="text-sm text-muted-foreground">Signing you in…</p>
+        <p className="text-sm text-muted-foreground">Setting up your account…</p>
       </div>
     </div>
   );

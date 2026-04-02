@@ -22,7 +22,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { CheckCircle2, XCircle, Loader2 } from "lucide-react";
+import { CheckCircle2, XCircle, Loader2, Mail } from "lucide-react";
 
 // ─── Schema ───────────────────────────────────────────────────────────────────
 
@@ -72,11 +72,23 @@ function toSlug(name: string) {
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
+// Pending tenant data stored in sessionStorage until email is confirmed
+interface PendingTenant {
+  slug: string;
+  clubName: string;
+  country: string;
+  email: string;
+  yourName: string;
+}
+
+export const PENDING_TENANT_KEY = "cuetronix_pending_tenant";
+
 const SignUp = () => {
   const navigate = useNavigate();
   const [slugStatus, setSlugStatus] = useState<
     "idle" | "checking" | "available" | "taken"
   >("idle");
+  const [emailSent, setEmailSent] = useState<string | null>(null);
 
   const {
     register,
@@ -118,33 +130,50 @@ const SignUp = () => {
       return;
     }
 
-    // 1. Create Supabase auth user
+    // Save pending tenant data so AuthCallback can create it after confirmation
+    const pending: PendingTenant = {
+      slug: data.slug,
+      clubName: data.clubName,
+      country: data.country,
+      email: data.email,
+      yourName: data.yourName,
+    };
+    sessionStorage.setItem(PENDING_TENANT_KEY, JSON.stringify(pending));
+
+    // 1. Create Supabase auth user; redirectTo ensures the confirmation link
+    //    lands back on our /auth/callback route (works on any domain).
     const { data: authData, error: authError } = await supabase.auth.signUp({
       email: data.email,
       password: data.password,
-      options: { data: { full_name: data.yourName } },
+      options: {
+        data: { full_name: data.yourName },
+        emailRedirectTo: `${window.location.origin}/auth/callback`,
+      },
     });
 
     if (authError) {
+      sessionStorage.removeItem(PENDING_TENANT_KEY);
       toast.error(authError.message);
       return;
     }
 
-    if (!authData.user) {
-      // Email confirmation required — tell the user
-      toast.info(
-        "Check your inbox! Confirm your email then sign in to complete setup."
-      );
-      navigate("/signin");
+    // session is null  → email confirmation is required (Supabase default)
+    // session is set   → auto-confirm is on, we can create the tenant now
+    if (!authData.session) {
+      setEmailSent(data.email);
       return;
     }
 
-    // 2. Create the full tenant workspace (SECURITY DEFINER RPC)
+    // Auto-confirm path: create tenant immediately
+    await finishTenantCreation(pending);
+  };
+
+  const finishTenantCreation = async (pending: PendingTenant) => {
     const { error: tenantError } = await supabase.rpc("create_tenant", {
-      p_slug: data.slug,
-      p_name: data.clubName,
-      p_country: data.country,
-      p_owner_email: data.email,
+      p_slug: pending.slug,
+      p_name: pending.clubName,
+      p_country: pending.country,
+      p_owner_email: pending.email,
     });
 
     if (tenantError) {
@@ -154,12 +183,73 @@ const SignUp = () => {
       return;
     }
 
-    // 3. Refresh session so the JWT now carries the new tenant_id
+    sessionStorage.removeItem(PENDING_TENANT_KEY);
     await supabase.auth.refreshSession();
-
-    toast.success(`Welcome to Cuetronix, ${data.yourName}! Let's set up your club.`);
+    toast.success(`Welcome to Cuetronix, ${pending.yourName}! Let's set up your club.`);
     navigate("/onboarding");
   };
+
+  // ── Email sent screen ────────────────────────────────────────────────────────
+  if (emailSent) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background p-4">
+        <div className="w-full max-w-md">
+          <div className="text-center mb-8">
+            <span className="text-3xl font-bold text-primary tracking-tight">Cuetronix</span>
+            <p className="text-sm text-muted-foreground mt-1">Club Management Platform</p>
+          </div>
+          <Card className="border-border/50 shadow-2xl shadow-primary/5 text-center">
+            <CardContent className="pt-10 pb-8 px-8 space-y-5">
+              <div className="flex justify-center">
+                <div className="h-16 w-16 rounded-full bg-primary/10 flex items-center justify-center">
+                  <Mail className="h-8 w-8 text-primary" />
+                </div>
+              </div>
+              <div className="space-y-2">
+                <h2 className="text-xl font-semibold">Check your inbox</h2>
+                <p className="text-sm text-muted-foreground leading-relaxed">
+                  We sent a confirmation link to{" "}
+                  <span className="font-medium text-foreground">{emailSent}</span>.
+                  Click it to verify your email and finish creating your club.
+                </p>
+              </div>
+              <div className="bg-muted/30 rounded-lg p-4 text-xs text-muted-foreground space-y-1">
+                <p>The link expires in <span className="font-medium text-foreground">24 hours</span>.</p>
+                <p>Don't see it? Check your spam folder.</p>
+              </div>
+              <Button
+                variant="outline"
+                className="w-full"
+                onClick={async () => {
+                  const { error } = await supabase.auth.resend({
+                    type: "signup",
+                    email: emailSent,
+                    options: { emailRedirectTo: `${window.location.origin}/auth/callback` },
+                  });
+                  if (error) toast.error(error.message);
+                  else toast.success("Confirmation email resent!");
+                }}
+              >
+                Resend confirmation email
+              </Button>
+              <p className="text-xs text-muted-foreground">
+                Wrong email?{" "}
+                <button
+                  className="underline text-primary"
+                  onClick={() => {
+                    sessionStorage.removeItem(PENDING_TENANT_KEY);
+                    setEmailSent(null);
+                  }}
+                >
+                  Go back
+                </button>
+              </p>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-background p-4">
