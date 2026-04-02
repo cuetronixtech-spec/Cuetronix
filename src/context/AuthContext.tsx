@@ -38,6 +38,21 @@ interface AuthContextType {
   refreshSession: () => Promise<void>;
 }
 
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+// Decode the JWT access token to get custom claims injected by the hook.
+// session.user.app_metadata reflects raw_app_meta_data (DB column), not the JWT.
+function decodeJwtAppMeta(session: Session | null): AppMetadata {
+  try {
+    const token = session?.access_token;
+    if (!token) return {};
+    const payload = JSON.parse(atob(token.split(".")[1]));
+    return (payload?.app_metadata ?? {}) as AppMetadata;
+  } catch {
+    return (session?.user?.app_metadata ?? {}) as AppMetadata;
+  }
+}
+
 // ─── Context ──────────────────────────────────────────────────────────────────
 
 const AuthContext = createContext<AuthContextType | null>(null);
@@ -75,8 +90,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (data.session) setSession(data.session);
   };
 
-  // app_metadata is embedded in the JWT by the custom_jwt_claims hook
-  const appMeta: AppMetadata = (session?.user?.app_metadata ?? {}) as AppMetadata;
+  // Decode custom hook claims from the JWT (not from raw_app_meta_data DB column)
+  const appMeta: AppMetadata = decodeJwtAppMeta(session);
 
   return (
     <AuthContext.Provider

@@ -28,10 +28,19 @@ const SuperAdminLogin = () => {
     });
     if (error) { toast.error(error.message); return; }
 
-    // The custom_jwt_claims hook injects role:"super_admin" into app_metadata
-    // for users in the superadmins table. Check the decoded JWT claim directly
-    // — more reliable than a second DB round-trip with potential RLS issues.
-    const role = authData.session?.user?.app_metadata?.role;
+    // session.user.app_metadata comes from the DB record (raw_app_meta_data),
+    // not the JWT. Decode the access_token directly to read the custom hook claims.
+    let role: string | undefined;
+    try {
+      const token = authData.session?.access_token;
+      if (token) {
+        const payload = JSON.parse(atob(token.split(".")[1]));
+        role = payload?.app_metadata?.role;
+      }
+    } catch {
+      role = authData.session?.user?.app_metadata?.role;
+    }
+
     if (role !== "super_admin") {
       await supabase.auth.signOut();
       toast.error("Access denied. You are not a super admin.");
