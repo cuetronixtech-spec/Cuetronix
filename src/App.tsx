@@ -3,8 +3,74 @@ import { BrowserRouter, Route, Routes } from "react-router-dom";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import Index from "./pages/Index.tsx";
-import NotFound from "./pages/NotFound.tsx";
+
+// Layouts
+import AppShell from "@/components/layout/AppShell";
+import SuperAdminShell from "@/components/layout/SuperAdminShell";
+import CustomerShell from "@/components/layout/CustomerShell";
+
+// Route Guards
+import { RequireAuth, RequireSuperAdmin, RequireCustomer, RequireActiveSubscription } from "@/components/guards/RequireAuth";
+
+// Marketing / Public pages
+import Landing from "@/pages/Landing";
+import Pricing from "@/pages/Pricing";
+import SignUp from "@/pages/SignUp";
+import SignIn from "@/pages/SignIn";
+import ForgotPassword from "@/pages/ForgotPassword";
+import Onboarding from "@/pages/Onboarding";
+
+// Protected App pages
+import Dashboard from "@/pages/app/Dashboard";
+import POS from "@/pages/app/POS";
+import Stations from "@/pages/app/Stations";
+import Products from "@/pages/app/Products";
+import Customers from "@/pages/app/Customers";
+import Reports from "@/pages/app/Reports";
+import BookingManagement from "@/pages/app/BookingManagement";
+import StaffManagement from "@/pages/app/StaffManagement";
+import StaffPortal from "@/pages/app/StaffPortal";
+import Tournaments from "@/pages/app/Tournaments";
+import Expenses from "@/pages/app/Expenses";
+import CashManagement from "@/pages/app/CashManagement";
+import Investors from "@/pages/app/Investors";
+import ChatAI from "@/pages/app/ChatAI";
+import LoginLogs from "@/pages/app/LoginLogs";
+import HowToUse from "@/pages/app/HowToUse";
+import Settings from "@/pages/app/Settings";
+
+// Public club pages
+import PublicBooking from "@/pages/public/PublicBooking";
+import PublicTournaments from "@/pages/public/PublicTournaments";
+import PublicStations from "@/pages/public/PublicStations";
+import PaymentSuccess from "@/pages/public/PaymentSuccess";
+import PaymentFailed from "@/pages/public/PaymentFailed";
+import TournamentPaymentSuccess from "@/pages/public/TournamentPaymentSuccess";
+
+// Customer portal
+import CustomerLogin from "@/pages/customer/CustomerLogin";
+import CustomerDashboard from "@/pages/customer/CustomerDashboard";
+import CustomerBookings from "@/pages/customer/CustomerBookings";
+import CustomerOffers from "@/pages/customer/CustomerOffers";
+import CustomerProfile from "@/pages/customer/CustomerProfile";
+
+// Super Admin
+import SuperAdminLogin from "@/pages/superadmin/SuperAdminLogin";
+import SADashboard from "@/pages/superadmin/SADashboard";
+import SATenants from "@/pages/superadmin/SATenants";
+import SATenantDetail from "@/pages/superadmin/SATenantDetail";
+import SARevenue from "@/pages/superadmin/SARevenue";
+import SAPlans from "@/pages/superadmin/SAPlans";
+import SABroadcast from "@/pages/superadmin/SABroadcast";
+import SAAuditLog from "@/pages/superadmin/SAAuditLog";
+
+// Legal
+import PrivacyPolicy from "@/pages/legal/PrivacyPolicy";
+import TermsAndConditions from "@/pages/legal/TermsAndConditions";
+import RefundPolicy from "@/pages/legal/RefundPolicy";
+import Contact from "@/pages/legal/Contact";
+
+import NotFound from "@/pages/NotFound";
 
 const queryClient = new QueryClient();
 
@@ -15,8 +81,71 @@ const App = () => (
       <Sonner />
       <BrowserRouter>
         <Routes>
-          <Route path="/" element={<Index />} />
-          {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+          {/* Marketing / Auth */}
+          <Route path="/" element={<Landing />} />
+          <Route path="/pricing" element={<Pricing />} />
+          <Route path="/signup" element={<SignUp />} />
+          <Route path="/signin" element={<SignIn />} />
+          <Route path="/forgot-password" element={<ForgotPassword />} />
+          <Route path="/onboarding" element={<Onboarding />} />
+
+          {/* Protected App (inside AppShell) */}
+          <Route element={<RequireAuth><RequireActiveSubscription><AppShell /></RequireActiveSubscription></RequireAuth>}>
+            <Route path="/dashboard" element={<Dashboard />} />
+            <Route path="/pos" element={<POS />} />
+            <Route path="/stations" element={<Stations />} />
+            <Route path="/products" element={<Products />} />
+            <Route path="/customers" element={<Customers />} />
+            <Route path="/reports" element={<Reports />} />
+            <Route path="/booking-management" element={<BookingManagement />} />
+            <Route path="/staff" element={<StaffManagement />} />
+            <Route path="/staff-portal" element={<StaffPortal />} />
+            <Route path="/tournaments" element={<Tournaments />} />
+            <Route path="/expenses" element={<Expenses />} />
+            <Route path="/cash" element={<CashManagement />} />
+            <Route path="/investors" element={<Investors />} />
+            <Route path="/chat-ai" element={<ChatAI />} />
+            <Route path="/login-logs" element={<LoginLogs />} />
+            <Route path="/how-to-use" element={<HowToUse />} />
+            <Route path="/settings" element={<Settings />} />
+          </Route>
+
+          {/* Public Club Pages */}
+          <Route path="/public/booking" element={<PublicBooking />} />
+          <Route path="/public/tournaments" element={<PublicTournaments />} />
+          <Route path="/public/stations" element={<PublicStations />} />
+          <Route path="/public/payment/success" element={<PaymentSuccess />} />
+          <Route path="/public/payment/failed" element={<PaymentFailed />} />
+          <Route path="/public/payment/tournament-success" element={<TournamentPaymentSuccess />} />
+
+          {/* Customer Portal */}
+          <Route path="/customer/login" element={<CustomerLogin />} />
+          <Route element={<RequireCustomer><CustomerShell /></RequireCustomer>}>
+            <Route path="/customer" element={<CustomerDashboard />} />
+            <Route path="/customer/bookings" element={<CustomerBookings />} />
+            <Route path="/customer/offers" element={<CustomerOffers />} />
+            <Route path="/customer/profile" element={<CustomerProfile />} />
+          </Route>
+
+          {/* Super Admin */}
+          <Route path="/super-admin/login" element={<SuperAdminLogin />} />
+          <Route element={<RequireSuperAdmin><SuperAdminShell /></RequireSuperAdmin>}>
+            <Route path="/super-admin" element={<SADashboard />} />
+            <Route path="/super-admin/tenants" element={<SATenants />} />
+            <Route path="/super-admin/tenants/:id" element={<SATenantDetail />} />
+            <Route path="/super-admin/revenue" element={<SARevenue />} />
+            <Route path="/super-admin/plans" element={<SAPlans />} />
+            <Route path="/super-admin/broadcast" element={<SABroadcast />} />
+            <Route path="/super-admin/audit-log" element={<SAAuditLog />} />
+          </Route>
+
+          {/* Legal */}
+          <Route path="/privacy-policy" element={<PrivacyPolicy />} />
+          <Route path="/terms-and-conditions" element={<TermsAndConditions />} />
+          <Route path="/refund-policy" element={<RefundPolicy />} />
+          <Route path="/contact" element={<Contact />} />
+
+          {/* Catch-all */}
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>
