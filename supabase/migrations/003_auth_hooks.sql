@@ -71,7 +71,7 @@ BEGIN
     )
   );
 
-  RETURN claims;
+  RETURN jsonb_build_object('claims', claims);
 END;
 $$;
 

@@ -19,6 +19,14 @@ export interface PaymentMethodConfig {
 export interface TenantConfig {
   tenant_id: string;
 
+  // Tenant-level fields (joined from tenants table)
+  tenant_slug: string | null;
+  tenant_name: string | null;
+  trial_ends_at: string | null;
+  subscription_status: string | null;
+  is_sandbox: boolean;
+  owner_user_id: string | null;
+
   // Branding
   brand_name: string | null;
   brand_logo_url: string | null;

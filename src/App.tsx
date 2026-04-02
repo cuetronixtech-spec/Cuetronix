@@ -31,6 +31,7 @@ import SignIn from "@/pages/SignIn";
 import ForgotPassword from "@/pages/ForgotPassword";
 import AuthCallback from "@/pages/AuthCallback";
 import Onboarding from "@/pages/Onboarding";
+import Subscription from "@/pages/Subscription";
 
 // ── Protected App pages ───────────────────────────────────────────────────────
 import Dashboard from "@/pages/app/Dashboard";
@@ -116,6 +117,16 @@ const App = () => (
                 element={
                   <RequireAuth>
                     <Onboarding />
+                  </RequireAuth>
+                }
+              />
+
+              {/* ─── Subscription paywall (auth required) ─────────── */}
+              <Route
+                path="/subscription"
+                element={
+                  <RequireAuth>
+                    <Subscription />
                   </RequireAuth>
                 }
               />

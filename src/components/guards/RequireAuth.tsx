@@ -1,6 +1,7 @@
 import { ReactNode } from "react";
 import { Navigate } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
+import { useTenant } from "@/context/TenantContext";
 
 // ─── Shared loading spinner ───────────────────────────────────────────────────
 
@@ -14,7 +15,6 @@ const Spinner = () => (
 );
 
 // ─── RequireAuth ──────────────────────────────────────────────────────────────
-// Redirects unauthenticated visitors to /signin.
 
 export const RequireAuth = ({ children }: { children: ReactNode }) => {
   const { session, loading } = useAuth();
@@ -24,36 +24,32 @@ export const RequireAuth = ({ children }: { children: ReactNode }) => {
 };
 
 // ─── RequireActiveSubscription ────────────────────────────────────────────────
-// Shows a lock screen when subscription is canceled.
-// trialing / active / past_due are allowed through.
+// Allows trialing (within trial period), active, past_due.
+// Redirects to /subscription when:
+//   - subscription_status === "canceled"
+//   - subscription_status === "trialing" AND trial_ends_at is in the past
 
 export const RequireActiveSubscription = ({
   children,
 }: {
   children: ReactNode;
 }) => {
-  const { appMeta } = useAuth();
-  if (appMeta.subscription_status === "canceled") {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-background p-6">
-        <div className="text-center max-w-md space-y-4">
-          <div className="text-6xl">🔒</div>
-          <h2 className="text-2xl font-bold text-foreground">
-            Subscription Ended
-          </h2>
-          <p className="text-muted-foreground">
-            Your subscription has ended. Renew to continue using Cuetronix.
-          </p>
-          <a
-            href="/pricing"
-            className="inline-flex items-center justify-center rounded-md bg-primary px-6 py-2.5 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors"
-          >
-            Renew Subscription
-          </a>
-        </div>
-      </div>
-    );
+  const { appMeta, loading: authLoading } = useAuth();
+  const { config, loading: tenantLoading } = useTenant();
+
+  if (authLoading || tenantLoading) return <Spinner />;
+
+  const status = appMeta.subscription_status ?? config?.subscription_status;
+
+  if (status === "canceled") {
+    return <Navigate to="/subscription" replace />;
   }
+
+  if (status === "trialing" && config?.trial_ends_at) {
+    const trialEnded = new Date(config.trial_ends_at) < new Date();
+    if (trialEnded) return <Navigate to="/subscription" replace />;
+  }
+
   return <>{children}</>;
 };
 

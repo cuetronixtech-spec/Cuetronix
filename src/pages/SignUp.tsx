@@ -196,8 +196,8 @@ const SignUp = () => {
 
     sessionStorage.removeItem(PENDING_TENANT_KEY);
     await supabase.auth.refreshSession();
-    toast.success(`Welcome to Cuetronix, ${pending.yourName}! Let's set up your club.`);
-    navigate("/onboarding");
+    toast.success(`Welcome to Cuetronix, ${pending.yourName}! Your 14-day trial has started.`);
+    navigate("/dashboard?welcome=1");
   };
 
   // ── Email sent screen ────────────────────────────────────────────────────────
