@@ -1,10 +1,11 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/context/AuthContext";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -19,35 +20,40 @@ type Form = z.infer<typeof schema>;
 
 const SuperAdminLogin = () => {
   const navigate = useNavigate();
+  const { appMeta, loading: authLoading } = useAuth();
   const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm<Form>({ resolver: zodResolver(schema) });
 
+  // Once AuthContext processes the sign-in and confirms role=super_admin, navigate
+  useEffect(() => {
+    if (!authLoading && appMeta.role === "super_admin") {
+      navigate("/super-admin", { replace: true });
+    }
+  }, [appMeta.role, authLoading, navigate]);
+
   const onSubmit = async (data: Form) => {
-    const { data: authData, error } = await supabase.auth.signInWithPassword({
+    const { error } = await supabase.auth.signInWithPassword({
       email: data.email,
       password: data.password,
     });
     if (error) { toast.error(error.message); return; }
 
-    // session.user.app_metadata comes from the DB record (raw_app_meta_data),
-    // not the JWT. Decode the access_token directly to read the custom hook claims.
+    // Verify role from the JWT — if not super_admin, sign out immediately
+    const { data: { session } } = await supabase.auth.getSession();
     let role: string | undefined;
     try {
-      const token = authData.session?.access_token;
+      const token = session?.access_token;
       if (token) {
         const payload = JSON.parse(atob(token.split(".")[1]));
         role = payload?.app_metadata?.role;
       }
-    } catch {
-      role = authData.session?.user?.app_metadata?.role;
-    }
+    } catch { /* fallback to useEffect */ }
 
     if (role !== "super_admin") {
       await supabase.auth.signOut();
       toast.error("Access denied. You are not a super admin.");
-      return;
     }
-
-    navigate("/super-admin");
+    // If role IS super_admin, the useEffect above handles navigation
+    // once AuthContext picks up the new session from onAuthStateChange
   };
 
   return (
