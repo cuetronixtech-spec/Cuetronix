@@ -16,6 +16,7 @@ import {
   HelpCircle,
   FileText,
   LogOut,
+  CreditCard,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useNavigate } from "react-router-dom";
@@ -60,10 +61,11 @@ const managementItems = [
 ];
 
 const toolsItems = [
-  { title: "AI Assistant", url: "/chat-ai",     icon: Bot },
-  { title: "Login Logs",   url: "/login-logs",  icon: FileText },
-  { title: "Settings",     url: "/settings",    icon: Settings },
-  { title: "How to Use",   url: "/how-to-use",  icon: HelpCircle },
+  { title: "AI Assistant",  url: "/chat-ai",      icon: Bot },
+  { title: "Login Logs",    url: "/login-logs",   icon: FileText },
+  { title: "Subscription",  url: "/subscription", icon: CreditCard },
+  { title: "Settings",      url: "/settings",     icon: Settings },
+  { title: "How to Use",    url: "/how-to-use",   icon: HelpCircle },
 ];
 
 const groups = [
