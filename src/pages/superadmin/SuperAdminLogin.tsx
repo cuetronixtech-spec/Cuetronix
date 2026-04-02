@@ -12,6 +12,8 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Shield, Loader2 } from "lucide-react";
 
+export const SA_FLAG = "_cuetronix_sa";
+
 const schema = z.object({
   email: z.string().email(),
   password: z.string().min(6),
@@ -20,40 +22,42 @@ type Form = z.infer<typeof schema>;
 
 const SuperAdminLogin = () => {
   const navigate = useNavigate();
-  const { appMeta, loading: authLoading } = useAuth();
+  const { session, loading: authLoading } = useAuth();
+  const [saVerified, setSaVerified] = useState(false);
   const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm<Form>({ resolver: zodResolver(schema) });
 
-  // Once AuthContext processes the sign-in and confirms role=super_admin, navigate
+  // Navigate once AuthContext has the session AND we've verified SA status
   useEffect(() => {
-    if (!authLoading && appMeta.role === "super_admin") {
+    if (saVerified && !authLoading && session) {
       navigate("/super-admin", { replace: true });
     }
-  }, [appMeta.role, authLoading, navigate]);
+  }, [saVerified, authLoading, session, navigate]);
 
   const onSubmit = async (data: Form) => {
-    const { error } = await supabase.auth.signInWithPassword({
+    const { data: authData, error } = await supabase.auth.signInWithPassword({
       email: data.email,
       password: data.password,
     });
     if (error) { toast.error(error.message); return; }
 
-    // Verify role from the JWT — if not super_admin, sign out immediately
-    const { data: { session } } = await supabase.auth.getSession();
-    let role: string | undefined;
-    try {
-      const token = session?.access_token;
-      if (token) {
-        const payload = JSON.parse(atob(token.split(".")[1]));
-        role = payload?.app_metadata?.role;
-      }
-    } catch { /* fallback to useEffect */ }
+    // Verify super admin via the superadmins table (RLS policy allows self-select)
+    const { data: sa } = await supabase
+      .from("superadmins")
+      .select("id, is_active")
+      .eq("id", authData.user!.id)
+      .eq("is_active", true)
+      .maybeSingle();
 
-    if (role !== "super_admin") {
+    if (!sa) {
       await supabase.auth.signOut();
       toast.error("Access denied. You are not a super admin.");
+      return;
     }
-    // If role IS super_admin, the useEffect above handles navigation
-    // once AuthContext picks up the new session from onAuthStateChange
+
+    // Persist flag so RequireSuperAdmin guard can verify without async DB call
+    sessionStorage.setItem(SA_FLAG, "1");
+    setSaVerified(true);
+    // useEffect above will navigate once session propagates into AuthContext
   };
 
   return (

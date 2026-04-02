@@ -40,15 +40,9 @@ BEGIN
   LIMIT 1;
 
   IF member_record IS NULL THEN
-    -- Check if this is a super admin (no tenant membership required)
-    IF EXISTS (
-      SELECT 1 FROM superadmins
-      WHERE id = (event->>'user_id')::uuid AND is_active = TRUE
-    ) THEN
-      claims := jsonb_set(claims, '{app_metadata}',
-        COALESCE(claims->'app_metadata', '{}') || '{"role":"super_admin"}'::jsonb
-      );
-    END IF;
+    -- No tenant membership — return claims unchanged.
+    -- Super admin detection is handled at the application layer via the
+    -- superadmins table (not via JWT claims) to keep this hook simple.
     RETURN jsonb_build_object('claims', claims);
   END IF;
 

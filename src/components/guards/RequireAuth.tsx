@@ -56,10 +56,11 @@ export const RequireActiveSubscription = ({
 // ─── RequireSuperAdmin ────────────────────────────────────────────────────────
 
 export const RequireSuperAdmin = ({ children }: { children: ReactNode }) => {
-  const { session, appMeta, loading } = useAuth();
+  const { session, loading } = useAuth();
   if (loading) return <Spinner />;
   if (!session) return <Navigate to="/super-admin/login" replace />;
-  if (appMeta.role !== "super_admin") return <Navigate to="/super-admin/login" replace />;
+  // SA_FLAG is set by SuperAdminLogin after verifying the superadmins table
+  if (sessionStorage.getItem("_cuetronix_sa") !== "1") return <Navigate to="/super-admin/login" replace />;
   return <>{children}</>;
 };
 

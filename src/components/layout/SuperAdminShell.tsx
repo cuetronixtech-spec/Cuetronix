@@ -1,13 +1,15 @@
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { NavLink } from "@/components/NavLink";
-import { useLocation } from "react-router-dom";
-import { Outlet } from "react-router-dom";
+import { Outlet, useNavigate } from "react-router-dom";
 import {
   Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent,
   SidebarGroupLabel, SidebarMenu, SidebarMenuButton, SidebarMenuItem,
   useSidebar,
 } from "@/components/ui/sidebar";
-import { LayoutDashboard, Building2, DollarSign, CreditCard, Megaphone, FileSearch } from "lucide-react";
+import { LayoutDashboard, Building2, DollarSign, CreditCard, Megaphone, FileSearch, LogOut } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { supabase } from "@/integrations/supabase/client";
+import { SA_FLAG } from "@/pages/superadmin/SuperAdminLogin";
 
 const items = [
   { title: "Dashboard", url: "/super-admin", icon: LayoutDashboard },
@@ -51,14 +53,24 @@ function SANav() {
   );
 }
 
-const SuperAdminShell = () => (
+const SuperAdminShell = () => {
+  const navigate = useNavigate();
+  const handleSignOut = async () => {
+    sessionStorage.removeItem(SA_FLAG);
+    await supabase.auth.signOut();
+    navigate("/super-admin/login", { replace: true });
+  };
+  return (
   <SidebarProvider>
     <div className="min-h-screen flex w-full">
       <SANav />
       <div className="flex-1 flex flex-col min-w-0">
-        <header className="h-14 border-b flex items-center px-4 bg-background">
+        <header className="h-14 border-b flex items-center px-4 bg-background gap-3">
           <SidebarTrigger />
-          <span className="ml-4 font-semibold text-foreground">Super Admin Panel</span>
+          <span className="ml-2 font-semibold text-foreground flex-1">Super Admin Panel</span>
+          <Button variant="ghost" size="sm" onClick={handleSignOut} className="text-muted-foreground hover:text-foreground">
+            <LogOut className="h-4 w-4 mr-1.5" />Sign out
+          </Button>
         </header>
         <main className="flex-1 p-4 md:p-6">
           <Outlet />
@@ -66,6 +78,7 @@ const SuperAdminShell = () => (
       </div>
     </div>
   </SidebarProvider>
-);
+  );
+};
 
 export default SuperAdminShell;
