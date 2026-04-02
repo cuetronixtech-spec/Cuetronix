@@ -25,6 +25,7 @@ export interface TenantConfig {
   trial_ends_at: string | null;
   subscription_status: string | null;
   is_sandbox: boolean;
+  is_approved: boolean;
   owner_user_id: string | null;
 
   // Branding

@@ -2,6 +2,7 @@ import { ReactNode } from "react";
 import { Navigate } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import { useTenant } from "@/context/TenantContext";
+import type { TenantConfig } from "@/context/TenantContext";
 
 // ─── Shared loading spinner ───────────────────────────────────────────────────
 
@@ -91,15 +92,35 @@ export const RequireRole = ({
   return <>{children}</>;
 };
 
+// ─── RequireApproved ─────────────────────────────────────────────────────────
+// Redirects unapproved tenants to the pending-approval waiting room.
+// Only engages when config is loaded AND is_approved is explicitly false.
+
+export const RequireApproved = ({ children }: { children: ReactNode }) => {
+  const { config, loading } = useTenant();
+  if (loading) return <Spinner />;
+  if (config && config.is_approved === false) {
+    return <Navigate to="/pending-approval" replace />;
+  }
+  return <>{children}</>;
+};
+
 // ─── FeatureGate ─────────────────────────────────────────────────────────────
-// Will be wired to TenantContext feature flags in the Settings phase.
-// For now it passes through so stubs are reachable.
+// Reads TenantConfig feature flags. If the flag is explicitly false, redirects
+// to /dashboard so the user isn't left on a blank page.
 
 export const FeatureGate = ({
   children,
+  feature,
 }: {
   children: ReactNode;
   feature?: string;
 }) => {
+  const { config, loading } = useTenant();
+  if (loading) return <Spinner />;
+  if (feature && config) {
+    const key = `feature_${feature}` as keyof TenantConfig;
+    if (config[key] === false) return <Navigate to="/dashboard" replace />;
+  }
   return <>{children}</>;
 };

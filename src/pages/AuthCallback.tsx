@@ -67,7 +67,7 @@ const AuthCallback = () => {
           sessionStorage.removeItem(PENDING_TENANT_KEY);
           // Refresh session so the JWT now carries the new tenant_id claim
           await supabase.auth.refreshSession();
-          navigate("/dashboard?welcome=1", { replace: true });
+          navigate("/pending-approval", { replace: true });
           return;
         } catch {
           sessionStorage.removeItem(PENDING_TENANT_KEY);

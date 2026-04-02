@@ -19,6 +19,7 @@ import {
   RequireSuperAdmin,
   RequireCustomer,
   RequireActiveSubscription,
+  RequireApproved,
   RequireRole,
   FeatureGate,
 } from "@/components/guards/RequireAuth";
@@ -32,6 +33,7 @@ import ForgotPassword from "@/pages/ForgotPassword";
 import AuthCallback from "@/pages/AuthCallback";
 import Onboarding from "@/pages/Onboarding";
 import Subscription from "@/pages/Subscription";
+import PendingApproval from "@/pages/app/PendingApproval";
 
 // ── Protected App pages ───────────────────────────────────────────────────────
 import Dashboard from "@/pages/app/Dashboard";
@@ -131,13 +133,25 @@ const App = () => (
                 }
               />
 
+              {/* ─── Pending approval waiting room ──────────────────── */}
+              <Route
+                path="/pending-approval"
+                element={
+                  <RequireAuth>
+                    <PendingApproval />
+                  </RequireAuth>
+                }
+              />
+
               {/* ─── Protected App ────────────────────────────────── */}
               <Route
                 element={
                   <RequireAuth>
-                    <RequireActiveSubscription>
-                      <AppShell />
-                    </RequireActiveSubscription>
+                    <RequireApproved>
+                      <RequireActiveSubscription>
+                        <AppShell />
+                      </RequireActiveSubscription>
+                    </RequireApproved>
                   </RequireAuth>
                 }
               >
