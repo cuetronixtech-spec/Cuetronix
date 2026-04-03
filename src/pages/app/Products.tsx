@@ -378,9 +378,9 @@ export default function Products() {
       </div>
 
       {/* Table */}
-      {loading ? (
+          {loading ? (
         <div className="space-y-2">{[...Array(6)].map((_, i) => <Skeleton key={i} className="h-12" />)}</div>
-      ) : (
+          ) : (
         <Card>
           <CardContent className="p-0">
             <Table>
@@ -407,7 +407,7 @@ export default function Products() {
                   const isLow = p.track_stock && p.stock > 0 && p.stock <= p.low_stock_threshold;
                   const isZero = p.track_stock && p.stock === 0;
                   return (
-                    <TableRow key={p.id}>
+                  <TableRow key={p.id}>
                       <TableCell className="font-medium">
                         {p.name}
                         {p.sku && <span className="text-xs text-muted-foreground ml-2">#{p.sku}</span>}
@@ -423,12 +423,12 @@ export default function Products() {
                         ) : <span className="text-muted-foreground">—</span>}
                       </TableCell>
                       <TableCell className="text-right">
-                        {p.track_stock ? (
+                      {p.track_stock ? (
                           <div className="flex items-center justify-end gap-1.5">
                             {(isLow || isZero) && <AlertTriangle className={cn("h-3 w-3", isZero ? "text-red-500" : "text-orange-500")} />}
                             <span className={cn("text-sm font-medium tabular-nums", isZero ? "text-red-500" : isLow ? "text-orange-500" : "")}>
-                              {p.stock}
-                            </span>
+                          {p.stock}
+                        </span>
                             {/* Inline quick-stock stepper */}
                             <div className="flex items-center gap-0.5 ml-1">
                               <Button size="sm" variant="ghost" className="h-5 w-5 p-0 text-muted-foreground hover:text-foreground" onClick={() => adjustStock(p, -1)} disabled={p.stock <= 0}>
@@ -440,12 +440,12 @@ export default function Products() {
                             </div>
                           </div>
                         ) : <span className="text-muted-foreground">∞</span>}
-                      </TableCell>
-                      <TableCell>
+                    </TableCell>
+                    <TableCell>
                         <Badge variant={p.is_active ? "default" : "secondary"} className="text-xs">
                           {p.is_active ? "Active" : "Inactive"}
                         </Badge>
-                      </TableCell>
+                    </TableCell>
                       <TableCell className="text-right">
                         <div className="flex gap-1 justify-end">
                           <Button size="sm" variant="ghost" className="h-7 px-2" onClick={() => openEdit(p)}>
@@ -454,16 +454,16 @@ export default function Products() {
                           <Button size="sm" variant="ghost" className="h-7 px-2 text-destructive hover:text-destructive" onClick={() => setDeleteTarget(p)}>
                             <Trash2 className="h-3 w-3" />
                           </Button>
-                        </div>
-                      </TableCell>
-                    </TableRow>
+                      </div>
+                    </TableCell>
+                  </TableRow>
                   );
                 })}
               </TableBody>
             </Table>
           </CardContent>
         </Card>
-      )}
+          )}
 
       {/* ── Add / Edit Product Dialog ── */}
       <Dialog open={open} onOpenChange={setOpen}>

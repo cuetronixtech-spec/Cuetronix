@@ -368,7 +368,7 @@ export default function POS() {
       product_id: c.product_id || null,
       name: c.name, qty: c.qty, unit_price: c.price, total_price: c.price * c.qty,
     }));
-    await supabase.from("bill_items").insert(billItems);
+      await supabase.from("bill_items").insert(billItems);
 
     // Update product stocks
     for (const item of cart) {
@@ -502,8 +502,8 @@ export default function POS() {
                 <div className="relative flex-1 min-w-[200px] max-w-xs">
                   <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
                   <Input value={productSearch} onChange={e => setProductSearch(e.target.value)} placeholder="Search products…" className="pl-8 h-8 text-sm" />
+                  </div>
                 </div>
-              </div>
             </CardHeader>
             <CardContent className="space-y-4">
               {/* Category tab bar */}
@@ -554,7 +554,7 @@ export default function POS() {
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <ShoppingCart className="h-4 w-4 text-muted-foreground" />
-                  <CardTitle className="text-base">Cart</CardTitle>
+            <CardTitle className="text-base">Cart</CardTitle>
                 </div>
                 {cart.length > 0 && (
                   <Button size="sm" variant="ghost" className="h-7 text-xs text-muted-foreground hover:text-destructive" onClick={() => setClearCartOpen(true)}>
@@ -563,12 +563,12 @@ export default function POS() {
                 )}
               </div>
               <p className="text-xs text-muted-foreground">{cart.length} item{cart.length !== 1 ? "s" : ""} in cart</p>
-            </CardHeader>
+          </CardHeader>
 
-            <CardContent className="space-y-3">
+          <CardContent className="space-y-3">
               {/* Cart items */}
               <ScrollArea className="max-h-72">
-                {cart.length === 0 ? (
+              {cart.length === 0 ? (
                   <div className="py-8 text-center space-y-2">
                     <ShoppingCart className="h-8 w-8 mx-auto text-muted-foreground/40 animate-pulse" />
                     <p className="text-sm font-medium text-muted-foreground">Cart Empty</p>
@@ -578,11 +578,11 @@ export default function POS() {
                   <div className="space-y-2 pr-2">
                     {cart.map((item, idx) => (
                       <div key={idx} className="flex items-center gap-2 animate-in fade-in-0" style={{ animationDelay: `${idx * 50}ms`, animationFillMode: "both" }}>
-                        <div className="flex-1 min-w-0">
+                      <div className="flex-1 min-w-0">
                           <p className="text-xs font-medium truncate">{item.name}</p>
                           <p className="text-[11px] text-muted-foreground">{fmt(sym, item.price)} each</p>
-                        </div>
-                        <div className="flex items-center gap-1 shrink-0">
+                      </div>
+                      <div className="flex items-center gap-1 shrink-0">
                           {item.isSession ? (
                             <span className="text-xs text-muted-foreground px-2">{item.qty}</span>
                           ) : (
@@ -595,16 +595,16 @@ export default function POS() {
                           <Button size="sm" variant="ghost" className="h-6 w-6 p-0 text-muted-foreground hover:text-destructive" onClick={() => removeFromCart(item.product_id, idx)}><X className="h-3 w-3" /></Button>
                         </div>
                         <p className="text-xs font-semibold w-14 text-right shrink-0">{fmt(sym, item.price * item.qty)}</p>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </ScrollArea>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </ScrollArea>
 
               {/* Totals */}
-              {cart.length > 0 && (
-                <>
-                  <Separator />
+            {cart.length > 0 && (
+              <>
+                <Separator />
                   <div className="space-y-1 text-xs">
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">Subtotal</span>
@@ -626,7 +626,7 @@ export default function POS() {
                       <span>Total</span>
                       <span>{fmt(sym, total)}</span>
                     </div>
-                  </div>
+                </div>
                 </>
               )}
 
@@ -663,8 +663,8 @@ export default function POS() {
                   </Button>
                 )}
               </div>
-            </CardContent>
-          </Card>
+          </CardContent>
+        </Card>
         </div>
       </div>
 

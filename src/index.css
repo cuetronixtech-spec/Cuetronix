@@ -125,3 +125,41 @@
     background: hsl(var(--muted-foreground));
   }
 }
+
+/* ── Landing page utilities ───────────────────────────────────────────────── */
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.35; }
+}
+
+/* Responsive header nav / CTA */
+.desktop-nav,
+.header-cta {
+  display: flex;
+}
+.mobile-menu-btn {
+  display: none;
+}
+
+@media (max-width: 900px) {
+  .desktop-nav,
+  .header-cta {
+    display: none !important;
+  }
+  .mobile-menu-btn {
+    display: flex !important;
+  }
+}
+
+/* Two-column grids that collapse on small screens */
+@media (max-width: 768px) {
+  .wl-grid,
+  .infra-grid,
+  .footer-grid {
+    grid-template-columns: 1fr !important;
+  }
+  .footer-grid {
+    gap: 32px !important;
+  }
+}
