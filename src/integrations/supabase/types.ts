@@ -274,6 +274,8 @@ export interface Station {
   is_occupied: boolean;
   display_order: number;
   parent_id: string | null;
+  /** Whether this station appears on the public booking page (migration 012) */
+  event_enabled: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -362,6 +364,8 @@ export interface Session {
   notes: string | null;
   status: SessionStatus;
   bill_id: string | null;
+  /** Coupon code applied at session start (migration 012) */
+  coupon_code: string | null;
   created_at: string;
 }
 
