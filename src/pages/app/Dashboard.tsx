@@ -612,7 +612,7 @@ function EditBillDialog({ bill, open, onClose, onSaved, tenantId, sym, products 
 
           {/* Header row */}
           <div className="grid grid-cols-3 gap-4 pb-4 border-b">
-            <div>
+    <div>
               <p className="text-xs text-muted-foreground">Bill ID</p>
               <p className="font-mono text-sm mt-1 font-medium">{bill.bill_number || bill.id.slice(0, 8)}</p>
             </div>
@@ -859,7 +859,7 @@ function RecentTransactions({ bills, activeSessions, onRefresh, tenantId, sym, p
             </svg>
             <Input placeholder="Search bills, customers…" value={search} onChange={e => { setSearch(e.target.value); setPage(1); }} className="h-8 pl-8 text-xs" />
           </div>
-        </CardHeader>
+            </CardHeader>
         <CardContent>
           <ScrollArea className="h-64">
             {paginated.length === 0 ? (
@@ -907,8 +907,8 @@ function RecentTransactions({ bills, activeSessions, onRefresh, tenantId, sym, p
               </div>
             </div>
           )}
-        </CardContent>
-      </Card>
+            </CardContent>
+          </Card>
 
       <AlertDialog open={!!deleteId} onOpenChange={o => { if (!o) { setDeleteId(null); setDeleteBillData(null); } }}>
         <AlertDialogContent>
@@ -1131,7 +1131,7 @@ function ExpenseDateFilter({ dateRange, onChange, expenses, sym }: {
             onChange({ start: new Date(customStart), end: new Date(customEnd + "T23:59:59") });
             setShowCustom(false);
           }}>Apply</Button>
-        </div>
+      </div>
       )}
     </div>
   );
@@ -1197,7 +1197,7 @@ function ExpenseList({ expenses, dateRange, selectedCategory, onSelectCategory, 
   const catCounts = expenses.reduce((acc, e) => { acc[e.category] = (acc[e.category] || 0) + 1; return acc; }, {} as Record<string, number>);
 
   return (
-    <Card className="border-border/50">
+        <Card className="border-border/50">
       <CardHeader className="pb-3">
         <div className="flex flex-wrap gap-1.5">
           <button
@@ -1211,28 +1211,28 @@ function ExpenseList({ expenses, dateRange, selectedCategory, onSelectCategory, 
             </button>
           ))}
         </div>
-      </CardHeader>
-      <CardContent>
+          </CardHeader>
+          <CardContent>
         {filtered.length === 0 ? (
           <p className="text-sm text-muted-foreground text-center py-8">No expenses{dateRange ? " in this date range" : ""}</p>
         ) : (
           <div className="space-y-1.5">
             {filtered.map(e => (
               <div key={e.id} className="flex items-center justify-between p-2.5 rounded-lg bg-muted/50">
-                <div className="min-w-0">
+                      <div className="min-w-0">
                   <p className="text-sm font-medium truncate">{e.description}</p>
                   <p className="text-xs text-muted-foreground">
                     {new Date(e.date).toLocaleDateString()} · <span className="capitalize">{e.category}</span>
                     {e.vendor_name && ` · ${e.vendor_name}`}
                   </p>
-                </div>
+                      </div>
                 <p className="font-semibold text-sm shrink-0 ml-4 text-red-500">-{sym}{Number(e.amount).toLocaleString()}</p>
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
-        )}
-      </CardContent>
-    </Card>
+            )}
+          </CardContent>
+        </Card>
   );
 }
 
@@ -1341,8 +1341,8 @@ function VaultTab({ tenantId, sym }: { tenantId: string; sym: string }) {
 
       <Card className="border-border/50">
         <CardHeader><CardTitle className="text-base">Transaction History</CardTitle></CardHeader>
-        <CardContent>
-          {loading ? (
+          <CardContent>
+            {loading ? (
             <div className="space-y-2">{[...Array(5)].map((_, i) => <Skeleton key={i} className="h-10" />)}</div>
           ) : txns.length === 0 ? (
             <p className="text-sm text-muted-foreground text-center py-8">No transactions yet</p>
@@ -1351,31 +1351,31 @@ function VaultTab({ tenantId, sym }: { tenantId: string; sym: string }) {
               {txns.map(t => (
                 <div key={t.id} className="flex items-center justify-between p-2.5 rounded-lg bg-muted/50">
                   <div className="min-w-0">
-                    <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2">
                       <Badge className={cn("text-xs", { "bg-green-100 text-green-700": t.type === "deposit" || t.type === "bill_receipt", "bg-red-100 text-red-700": t.type === "withdrawal" || t.type === "expense" })} variant="secondary">
                         {t.type.replace(/_/g, " ")}
                       </Badge>
                       {t.note && <span className="text-xs text-muted-foreground truncate">{t.note}</span>}
-                    </div>
-                    <p className="text-xs text-muted-foreground mt-0.5">{new Date(t.created_at).toLocaleString()}</p>
                   </div>
+                    <p className="text-xs text-muted-foreground mt-0.5">{new Date(t.created_at).toLocaleString()}</p>
+                </div>
                   <div className="flex items-center gap-3 shrink-0">
                     <div className="text-right">
                       <p className={`text-sm font-medium ${t.type === "deposit" || t.type === "bill_receipt" ? "text-green-600" : "text-red-600"}`}>
                         {t.type === "deposit" || t.type === "bill_receipt" ? "+" : "-"}{sym}{t.amount.toLocaleString()}
                       </p>
                       <p className="text-xs text-muted-foreground">Bal: {sym}{t.balance_after.toLocaleString()}</p>
-                    </div>
+                  </div>
                     <button onClick={() => deleteTx(t)} className="p-1 text-muted-foreground hover:text-destructive rounded">
                       <Trash2 className="h-3 w-3" />
                     </button>
-                  </div>
                 </div>
+                  </div>
               ))}
-            </div>
-          )}
-        </CardContent>
-      </Card>
+              </div>
+            )}
+          </CardContent>
+        </Card>
 
       {/* Add Cash Dialog */}
       <Dialog open={addOpen} onOpenChange={setAddOpen}>
@@ -1385,7 +1385,7 @@ function VaultTab({ tenantId, sym }: { tenantId: string; sym: string }) {
             <div><Label>Amount ({sym}) *</Label><Input type="number" min="0" step="0.01" value={amount} onChange={e => setAmount(e.target.value)} className="mt-1.5" placeholder="0.00" /></div>
             <div><Label>Note / Reason</Label><Input value={note} onChange={e => setNote(e.target.value)} className="mt-1.5" placeholder="Optional" /></div>
             {vault && <p className="text-sm text-muted-foreground">Current balance: {sym}{vault.balance.toLocaleString()}</p>}
-          </div>
+      </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setAddOpen(false)}>Cancel</Button>
             <Button onClick={() => recordTx("deposit")} disabled={saving}>{saving ? "Saving…" : "Add Cash"}</Button>
