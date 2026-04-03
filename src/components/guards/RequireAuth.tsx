@@ -3,6 +3,7 @@ import { Navigate } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import { useTenant } from "@/context/TenantContext";
 import type { TenantConfig } from "@/context/TenantContext";
+import { getCustomerSession } from "@/hooks/useCustomerSession";
 
 // ─── Shared loading spinner ───────────────────────────────────────────────────
 
@@ -66,10 +67,10 @@ export const RequireSuperAdmin = ({ children }: { children: ReactNode }) => {
 };
 
 // ─── RequireCustomer ─────────────────────────────────────────────────────────
+// Customer portal uses a localStorage-based session (not Supabase auth).
 
 export const RequireCustomer = ({ children }: { children: ReactNode }) => {
-  const { session, loading } = useAuth();
-  if (loading) return <Spinner />;
+  const session = getCustomerSession();
   if (!session) return <Navigate to="/customer/login" replace />;
   return <>{children}</>;
 };

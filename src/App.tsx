@@ -185,7 +185,7 @@ const App = () => (
               {/* ─── Customer Portal ──────────────────────────────── */}
               <Route path="/customer/login" element={<CustomerLogin />} />
               <Route element={<RequireCustomer><CustomerShell /></RequireCustomer>}>
-                <Route path="/customer" element={<CustomerDashboard />} />
+                <Route path="/customer/dashboard" element={<CustomerDashboard />} />
                 <Route path="/customer/bookings" element={<CustomerBookings />} />
                 <Route path="/customer/offers" element={<CustomerOffers />} />
                 <Route path="/customer/profile" element={<CustomerProfile />} />
