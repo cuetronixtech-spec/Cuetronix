@@ -8,12 +8,8 @@ import { Input } from "@/components/ui/input";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-  DialogDescription,
+  Dialog, DialogContent, DialogHeader, DialogTitle,
+  DialogFooter, DialogDescription,
 } from "@/components/ui/dialog";
 import { CalendarDays, Clock, MapPin, Ban, Search, Filter } from "lucide-react";
 import { toast } from "sonner";
@@ -21,67 +17,79 @@ import { PageHeader } from "@/components/shared/PageHeader";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
+// bookings: booking_date DATE, start_time TIME, end_time TIME
 type Booking = {
   id: string;
-  station_name: string;
-  station_type: string | null;
-  start_time: string;
-  end_time: string;
+  booking_date: string;   // "2026-04-03"
+  start_time: string;     // "14:00:00"
+  end_time: string;       // "15:30:00"
   status: string;
   amount: number | null;
-  booking_date: string | null;
+  duration_mins: number | null;
+  notes: string | null;
+  stations: { name: string; type: string } | null;
 };
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 const STATUS_BADGE: Record<string, { label: string; className: string }> = {
-  confirmed:  { label: "Confirmed",  className: "bg-blue-500/10 text-blue-400 border-blue-500/20" },
-  pending:    { label: "Pending",    className: "bg-yellow-500/10 text-yellow-400 border-yellow-500/20" },
-  active:     { label: "Active",     className: "bg-emerald-500/10 text-emerald-400 border-emerald-500/20" },
-  completed:  { label: "Completed",  className: "bg-muted text-muted-foreground border-border" },
-  cancelled:  { label: "Cancelled",  className: "bg-red-500/10 text-red-400 border-red-500/20" },
-  no_show:    { label: "No Show",    className: "bg-orange-500/10 text-orange-400 border-orange-500/20" },
+  pending:    { label: "Pending",     className: "bg-yellow-500/10 text-yellow-400 border-yellow-500/20" },
+  confirmed:  { label: "Confirmed",   className: "bg-blue-500/10 text-blue-400 border-blue-500/20" },
+  checked_in: { label: "Checked In",  className: "bg-emerald-500/10 text-emerald-400 border-emerald-500/20" },
+  completed:  { label: "Completed",   className: "bg-muted text-muted-foreground border-border" },
+  cancelled:  { label: "Cancelled",   className: "bg-red-500/10 text-red-400 border-red-500/20" },
+  no_show:    { label: "No Show",     className: "bg-orange-500/10 text-orange-400 border-orange-500/20" },
 };
 
-function fmt(iso: string, opts?: Intl.DateTimeFormatOptions) {
-  return new Date(iso).toLocaleString("en-IN", opts);
-}
-function fmtDate(iso: string) {
-  return fmt(iso, { day: "numeric", month: "short", year: "numeric" });
-}
-function fmtTime(iso: string) {
-  return fmt(iso, { hour: "2-digit", minute: "2-digit" });
-}
-function duration(start: string, end: string) {
-  const mins = Math.round((new Date(end).getTime() - new Date(start).getTime()) / 60000);
-  if (mins < 60) return `${mins}m`;
-  const h = Math.floor(mins / 60), m = mins % 60;
-  return m ? `${h}h ${m}m` : `${h}h`;
+function fmtBookingDate(dateStr: string) {
+  return new Date(dateStr + "T00:00:00").toLocaleDateString("en-IN", {
+    weekday: "short", day: "numeric", month: "short", year: "numeric",
+  });
 }
 
-// ─── Quick date filter pills ──────────────────────────────────────────────────
+function fmtTimeStr(time: string) {
+  const [h, m] = time.split(":");
+  const hour = parseInt(h, 10);
+  const ampm = hour >= 12 ? "pm" : "am";
+  const display = hour % 12 || 12;
+  return `${display}:${m}${ampm}`;
+}
+
+function durationLabel(mins: number | null, start: string, end: string): string {
+  const m = mins ?? Math.round(
+    (new Date(`2000-01-01T${end}`).getTime() - new Date(`2000-01-01T${start}`).getTime()) / 60000
+  );
+  if (m < 60) return `${m}m`;
+  const h = Math.floor(m / 60), rem = m % 60;
+  return rem ? `${h}h ${rem}m` : `${h}h`;
+}
+
+/** Is this booking in the past (booking_date + end_time < now)? */
+function isBookingPast(b: Booking): boolean {
+  const end = new Date(`${b.booking_date}T${b.end_time}`);
+  return end < new Date();
+}
+
+/** Is this booking upcoming (start > now)? */
+function isBookingUpcoming(b: Booking): boolean {
+  const start = new Date(`${b.booking_date}T${b.start_time}`);
+  return start > new Date();
+}
 
 type DatePreset = "all" | "today" | "week" | "month" | "custom";
 
-function isInRange(iso: string, preset: DatePreset, from: string, to: string): boolean {
+function isInRange(dateStr: string, preset: DatePreset, from: string, to: string): boolean {
   if (preset === "all") return true;
-  const d = new Date(iso);
+  const d = new Date(dateStr + "T00:00:00");
   const now = new Date();
-  if (preset === "today") {
-    return d.toDateString() === now.toDateString();
-  }
+  if (preset === "today") return d.toDateString() === now.toDateString();
   if (preset === "week") {
-    const start = new Date(now); start.setDate(now.getDate() - now.getDay());
-    start.setHours(0, 0, 0, 0);
+    const start = new Date(now); start.setDate(now.getDate() - now.getDay()); start.setHours(0,0,0,0);
     const end = new Date(start); end.setDate(start.getDate() + 7);
     return d >= start && d < end;
   }
-  if (preset === "month") {
-    return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth();
-  }
-  if (preset === "custom" && from && to) {
-    return d >= new Date(from) && d <= new Date(to + "T23:59:59");
-  }
+  if (preset === "month") return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth();
+  if (preset === "custom" && from && to) return d >= new Date(from) && d <= new Date(to);
   return true;
 }
 
@@ -89,8 +97,7 @@ function isInRange(iso: string, preset: DatePreset, from: string, to: string): b
 
 function BookingCard({ booking, onCancel }: { booking: Booking; onCancel?: (id: string) => void }) {
   const badge = STATUS_BADGE[booking.status] ?? STATUS_BADGE.pending;
-  const canCancel = booking.status === "confirmed" || booking.status === "pending";
-  const upcoming = new Date(booking.start_time) > new Date();
+  const canCancel = (booking.status === "confirmed" || booking.status === "pending") && isBookingUpcoming(booking);
 
   return (
     <Card>
@@ -98,25 +105,24 @@ function BookingCard({ booking, onCancel }: { booking: Booking; onCancel?: (id: 
         <div className="flex items-start justify-between gap-3">
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 mb-1.5 flex-wrap">
-              <span className="font-semibold text-foreground">{booking.station_name}</span>
-              {booking.station_type && (
-                <span className="text-xs text-muted-foreground bg-muted px-1.5 py-0.5 rounded">
-                  {booking.station_type}
+              <span className="font-semibold text-foreground">
+                {booking.stations?.name ?? "Station"}
+              </span>
+              {booking.stations?.type && (
+                <span className="text-xs text-muted-foreground bg-muted px-1.5 py-0.5 rounded capitalize">
+                  {booking.stations.type}
                 </span>
               )}
             </div>
             <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
               <span className="flex items-center gap-1">
-                <CalendarDays className="h-3 w-3" />
-                {fmtDate(booking.booking_date || booking.start_time)}
+                <CalendarDays className="h-3 w-3" />{fmtBookingDate(booking.booking_date)}
               </span>
               <span className="flex items-center gap-1">
-                <Clock className="h-3 w-3" />
-                {fmtTime(booking.start_time)} – {fmtTime(booking.end_time)}
+                <Clock className="h-3 w-3" />{fmtTimeStr(booking.start_time)} – {fmtTimeStr(booking.end_time)}
               </span>
               <span className="flex items-center gap-1">
-                <MapPin className="h-3 w-3" />
-                {duration(booking.start_time, booking.end_time)}
+                <MapPin className="h-3 w-3" />{durationLabel(booking.duration_mins, booking.start_time, booking.end_time)}
               </span>
             </div>
           </div>
@@ -129,14 +135,11 @@ function BookingCard({ booking, onCancel }: { booking: Booking; onCancel?: (id: 
             )}
           </div>
         </div>
-        {canCancel && upcoming && onCancel && (
+        {canCancel && onCancel && (
           <div className="mt-3 pt-3 border-t border-border/50">
-            <Button
-              variant="ghost"
-              size="sm"
+            <Button variant="ghost" size="sm"
               className="h-7 text-xs text-destructive hover:text-destructive hover:bg-destructive/10 gap-1"
-              onClick={() => onCancel(booking.id)}
-            >
+              onClick={() => onCancel(booking.id)}>
               <Ban className="h-3 w-3" /> Cancel booking
             </Button>
           </div>
@@ -167,11 +170,12 @@ export default function CustomerBookings() {
     setLoading(true);
     const { data, error } = await supabase
       .from("bookings")
-      .select("id, station_name, station_type, start_time, end_time, status, amount, booking_date")
+      .select("id, booking_date, start_time, end_time, status, amount, duration_mins, notes, stations(name, type)")
       .eq("customer_id", customerId)
+      .order("booking_date", { ascending: false })
       .order("start_time", { ascending: false });
     if (error) toast.error(error.message);
-    setBookings((data || []) as Booking[]);
+    setBookings((data || []) as unknown as Booking[]);
     setLoading(false);
   };
 
@@ -181,10 +185,8 @@ export default function CustomerBookings() {
     if (!cancelId) return;
     setCancelling(true);
     const { error } = await supabase
-      .from("bookings")
-      .update({ status: "cancelled" })
-      .eq("id", cancelId)
-      .eq("customer_id", customerId);
+      .from("bookings").update({ status: "cancelled" })
+      .eq("id", cancelId).eq("customer_id", customerId);
     setCancelling(false);
     if (error) { toast.error(error.message); return; }
     toast.success("Booking cancelled");
@@ -192,22 +194,18 @@ export default function CustomerBookings() {
     load();
   };
 
-  const now = new Date();
-
-  const filter = (list: Booking[]) =>
+  const applyFilters = (list: Booking[]) =>
     list.filter(b => {
       const matchSearch = !search ||
-        b.station_name.toLowerCase().includes(search.toLowerCase()) ||
-        (b.station_type || "").toLowerCase().includes(search.toLowerCase());
-      const matchDate = isInRange(b.start_time, datePreset, dateFrom, dateTo);
+        (b.stations?.name ?? "").toLowerCase().includes(search.toLowerCase()) ||
+        (b.stations?.type ?? "").toLowerCase().includes(search.toLowerCase());
+      const matchDate = isInRange(b.booking_date, datePreset, dateFrom, dateTo);
       return matchSearch && matchDate;
     });
 
-  const upcoming = filter(bookings.filter(b =>
-    (b.status === "confirmed" || b.status === "pending" || b.status === "active") && new Date(b.start_time) >= now
-  ));
-  const past = filter(bookings.filter(b => b.status === "completed" || new Date(b.end_time) < now && b.status !== "cancelled"));
-  const cancelled = filter(bookings.filter(b => b.status === "cancelled"));
+  const upcoming  = applyFilters(bookings.filter(b => (b.status === "confirmed" || b.status === "pending" || b.status === "checked_in") && isBookingUpcoming(b)));
+  const past      = applyFilters(bookings.filter(b => b.status === "completed" || (isBookingPast(b) && b.status !== "cancelled")));
+  const cancelled = applyFilters(bookings.filter(b => b.status === "cancelled"));
 
   const DATE_PRESETS: { key: DatePreset; label: string }[] = [
     { key: "all", label: "All time" },
@@ -217,8 +215,6 @@ export default function CustomerBookings() {
     { key: "custom", label: "Custom" },
   ];
 
-  const counts = { upcoming: upcoming.length, past: past.length, cancelled: cancelled.length };
-
   return (
     <div className="space-y-5">
       <PageHeader title="My Bookings" description="View and manage your reservations" />
@@ -227,25 +223,17 @@ export default function CustomerBookings() {
       <div className="space-y-3">
         <div className="relative max-w-xs">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Search station…"
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            className="pl-9"
-          />
+          <Input placeholder="Search station…" value={search} onChange={e => setSearch(e.target.value)} className="pl-9" />
         </div>
         <div className="flex flex-wrap gap-2 items-center">
           <Filter className="h-4 w-4 text-muted-foreground" />
           {DATE_PRESETS.map(p => (
-            <button
-              key={p.key}
-              onClick={() => setDatePreset(p.key)}
+            <button key={p.key} onClick={() => setDatePreset(p.key)}
               className={`text-xs px-3 py-1.5 rounded-full border transition-colors ${
                 datePreset === p.key
                   ? "bg-primary text-primary-foreground border-primary"
                   : "border-border text-muted-foreground hover:text-foreground"
-              }`}
-            >
+              }`}>
               {p.label}
             </button>
           ))}
@@ -259,24 +247,21 @@ export default function CustomerBookings() {
         )}
       </div>
 
-      {/* Tabs */}
       <Tabs value={tab} onValueChange={setTab}>
         <TabsList>
           <TabsTrigger value="upcoming">
-            Upcoming {counts.upcoming > 0 && <Badge variant="secondary" className="ml-1.5 h-4 text-[10px]">{counts.upcoming}</Badge>}
+            Upcoming{upcoming.length > 0 && <Badge variant="secondary" className="ml-1.5 h-4 text-[10px]">{upcoming.length}</Badge>}
           </TabsTrigger>
           <TabsTrigger value="past">Past</TabsTrigger>
           <TabsTrigger value="cancelled">Cancelled</TabsTrigger>
         </TabsList>
 
-        {["upcoming", "past", "cancelled"].map(t => {
+        {(["upcoming", "past", "cancelled"] as const).map(t => {
           const list = t === "upcoming" ? upcoming : t === "past" ? past : cancelled;
           return (
             <TabsContent key={t} value={t} className="mt-4">
               {loading ? (
-                <div className="space-y-3">
-                  {[...Array(3)].map((_, i) => <Skeleton key={i} className="h-24" />)}
-                </div>
+                <div className="space-y-3">{[...Array(3)].map((_, i) => <Skeleton key={i} className="h-24" />)}</div>
               ) : list.length === 0 ? (
                 <div className="text-center py-12">
                   <CalendarDays className="h-10 w-10 text-muted-foreground mx-auto mb-3" />
@@ -287,11 +272,7 @@ export default function CustomerBookings() {
               ) : (
                 <div className="space-y-3">
                   {list.map(b => (
-                    <BookingCard
-                      key={b.id}
-                      booking={b}
-                      onCancel={t === "upcoming" ? setCancelId : undefined}
-                    />
+                    <BookingCard key={b.id} booking={b} onCancel={t === "upcoming" ? setCancelId : undefined} />
                   ))}
                 </div>
               )}
@@ -300,14 +281,11 @@ export default function CustomerBookings() {
         })}
       </Tabs>
 
-      {/* Cancel confirm dialog */}
       <Dialog open={!!cancelId} onOpenChange={() => setCancelId(null)}>
         <DialogContent className="max-w-sm">
           <DialogHeader>
             <DialogTitle>Cancel Booking</DialogTitle>
-            <DialogDescription>
-              Are you sure you want to cancel this booking? This action cannot be undone.
-            </DialogDescription>
+            <DialogDescription>Are you sure you want to cancel this booking? This cannot be undone.</DialogDescription>
           </DialogHeader>
           <DialogFooter>
             <Button variant="outline" onClick={() => setCancelId(null)}>Keep booking</Button>

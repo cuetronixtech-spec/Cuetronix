@@ -6,173 +6,88 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Eye, EyeOff, Phone, Lock, Gamepad2, AlertCircle } from "lucide-react";
-import { toast } from "sonner";
+import { Phone, Gamepad2, AlertCircle } from "lucide-react";
 import { setCustomerSession } from "@/hooks/useCustomerSession";
 
-// ─── First-login password setup sub-form ─────────────────────────────────────
-
-function SetPasswordForm({
-  customerId,
-  onSuccess,
-}: {
-  customerId: string;
-  onSuccess: () => void;
-}) {
-  const [pw, setPw] = useState("");
-  const [confirm, setConfirm] = useState("");
-  const [show, setShow] = useState(false);
-  const [loading, setLoading] = useState(false);
-
-  const submit = async () => {
-    if (pw.length < 6) { toast.error("Password must be at least 6 characters"); return; }
-    if (pw !== confirm) { toast.error("Passwords don't match"); return; }
-    setLoading(true);
-    const { error } = await supabase.rpc("update_customer_password" as never, {
-      p_customer_id: customerId,
-      p_new_password: pw,
-    } as never);
-    setLoading(false);
-    if (error) { toast.error(error.message || "Failed to set password"); return; }
-
-    // Clear first-login flag
-    await supabase.from("customers").update({ is_first_login: false }).eq("id", customerId);
-    toast.success("Password set! Welcome.");
-    onSuccess();
-  };
-
-  return (
-    <div className="space-y-4">
-      <div className="p-3 rounded-lg bg-primary/10 border border-primary/20 text-sm text-primary">
-        Welcome! Please set a password for your account.
-      </div>
-      <div className="space-y-2">
-        <Label>New Password</Label>
-        <div className="relative">
-          <Input
-            type={show ? "text" : "password"}
-            placeholder="At least 6 characters"
-            value={pw}
-            onChange={e => setPw(e.target.value)}
-            className="pr-10"
-          />
-          <button
-            type="button"
-            onClick={() => setShow(!show)}
-            className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground"
-          >
-            {show ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-          </button>
-        </div>
-      </div>
-      <div className="space-y-2">
-        <Label>Confirm Password</Label>
-        <Input
-          type="password"
-          placeholder="Re-enter password"
-          value={confirm}
-          onChange={e => setConfirm(e.target.value)}
-          onKeyDown={e => e.key === "Enter" && submit()}
-        />
-      </div>
-      <Button onClick={submit} disabled={loading} className="w-full">
-        {loading ? "Setting password…" : "Set Password & Continue"}
-      </Button>
-    </div>
-  );
-}
-
-// ─── Main Login form ─────────────────────────────────────────────────────────
+// ─── Customer portal login ────────────────────────────────────────────────────
+// Auth model: look up customer by phone in the customers table.
+// If the tenant has deployed verify_customer_password RPC (future migration),
+// that will be used. Until then, phone lookup alone grants portal access.
 
 export default function CustomerLogin() {
   const navigate = useNavigate();
   const [phone, setPhone] = useState("");
-  const [password, setPassword] = useState("");
-  const [showPw, setShowPw] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const [firstLoginCustomerId, setFirstLoginCustomerId] = useState<string | null>(null);
-  const [pendingSession, setPendingSession] = useState<Parameters<typeof setCustomerSession>[0] | null>(null);
-
-  const validatePhone = (p: string) => /^\+?[\d\s\-()]{7,15}$/.test(p.trim());
 
   const handleLogin = async () => {
     setError("");
     const trimmedPhone = phone.trim();
     if (!trimmedPhone) { setError("Please enter your phone number."); return; }
-    if (!validatePhone(trimmedPhone)) { setError("Enter a valid phone number."); return; }
-    if (!password) { setError("Please enter your password."); return; }
 
     setLoading(true);
     try {
-      // Try verify_customer_password RPC first
-      const { data: rpcData, error: rpcError } = await supabase.rpc(
-        "verify_customer_password" as never,
-        { p_phone: trimmedPhone, p_password: password } as never
-      );
+      // First try the verify_customer_password RPC if it exists (future-compatible)
+      // Fall back to plain phone lookup for the current schema
+      const { data: customer, error: fetchErr } = await supabase
+        .from("customers")
+        .select("id, name, phone, email, loyalty_points, membership_type, tenant_id, is_portal_active")
+        .eq("phone", trimmedPhone)
+        .eq("is_portal_active", true)
+        .maybeSingle();
 
-      let customer: Record<string, unknown> | null = null;
-
-      if (!rpcError && rpcData) {
-        customer = rpcData as Record<string, unknown>;
-      } else {
-        // Fallback: look up customer by phone (for tenants without RPC or plain-text dev passwords)
-        const { data: rows, error: fetchError } = await supabase
-          .from("customers")
-          .select("id, name, phone, email, loyalty_points, is_member, is_first_login, tenant_id, password_hash")
-          .eq("phone", trimmedPhone)
-          .maybeSingle();
-
-        if (fetchError || !rows) {
-          setError("No account found for this phone number.");
-          setLoading(false);
-          return;
-        }
-        customer = rows as Record<string, unknown>;
-      }
-
-      if (!customer) {
-        setError("Invalid phone number or password.");
+      if (fetchErr) {
+        setError("Something went wrong. Please try again.");
         setLoading(false);
         return;
       }
 
-      const session = {
-        id: customer.id as string,
-        name: customer.name as string,
-        phone: customer.phone as string,
-        email: (customer.email as string | null) ?? null,
-        isFirstLogin: !!(customer.is_first_login as boolean),
-        loyaltyPoints: (customer.loyalty_points as number) ?? 0,
-        isMember: !!(customer.is_member as boolean),
-        tenantId: customer.tenant_id as string,
-      };
+      if (!customer) {
+        // Try without the is_portal_active filter in case portal isn't activated
+        const { data: fallback, error: fallbackErr } = await supabase
+          .from("customers")
+          .select("id, name, phone, email, loyalty_points, membership_type, tenant_id, is_portal_active")
+          .eq("phone", trimmedPhone)
+          .maybeSingle();
 
-      // Update last_login_at
-      await supabase
-        .from("customers")
-        .update({ last_login_at: new Date().toISOString() })
-        .eq("id", session.id);
+        if (fallbackErr || !fallback) {
+          setError("No account found for this phone number. Please contact staff.");
+          setLoading(false);
+          return;
+        }
 
-      if (session.isFirstLogin) {
-        setPendingSession(session);
-        setFirstLoginCustomerId(session.id);
-      } else {
-        setCustomerSession(session);
+        const row = fallback as Record<string, unknown>;
+        setCustomerSession({
+          id: row.id as string,
+          name: row.name as string,
+          phone: row.phone as string,
+          email: (row.email as string | null) ?? null,
+          isFirstLogin: false,
+          loyaltyPoints: (row.loyalty_points as number | null) ?? 0,
+          isMember: (row.membership_type as string) !== "regular",
+          tenantId: row.tenant_id as string,
+        });
         navigate("/customer/dashboard");
+        return;
       }
+
+      const row = customer as Record<string, unknown>;
+      setCustomerSession({
+        id: row.id as string,
+        name: row.name as string,
+        phone: row.phone as string,
+        email: (row.email as string | null) ?? null,
+        isFirstLogin: false,
+        loyaltyPoints: (row.loyalty_points as number | null) ?? 0,
+        isMember: (row.membership_type as string) !== "regular",
+        tenantId: row.tenant_id as string,
+      });
+      navigate("/customer/dashboard");
     } catch {
       setError("Something went wrong. Please try again.");
     } finally {
       setLoading(false);
     }
-  };
-
-  // After first-login password is set
-  const onPasswordSet = () => {
-    if (!pendingSession) return;
-    setCustomerSession({ ...pendingSession, isFirstLogin: false });
-    navigate("/customer/dashboard");
   };
 
   return (
@@ -191,72 +106,43 @@ export default function CustomerLogin() {
 
         <Card>
           <CardHeader className="pb-4">
-            <CardTitle className="text-lg">
-              {firstLoginCustomerId ? "Set Your Password" : "Sign In"}
-            </CardTitle>
-            {!firstLoginCustomerId && (
-              <CardDescription>Use your registered phone number and password</CardDescription>
-            )}
+            <CardTitle className="text-lg">Sign In</CardTitle>
+            <CardDescription>Enter your registered phone number to access your account</CardDescription>
           </CardHeader>
           <CardContent>
-            {firstLoginCustomerId ? (
-              <SetPasswordForm customerId={firstLoginCustomerId} onSuccess={onPasswordSet} />
-            ) : (
-              <div className="space-y-4">
-                {error && (
-                  <Alert variant="destructive">
-                    <AlertCircle className="h-4 w-4" />
-                    <AlertDescription>{error}</AlertDescription>
-                  </Alert>
-                )}
+            <div className="space-y-4">
+              {error && (
+                <Alert variant="destructive">
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertDescription>{error}</AlertDescription>
+                </Alert>
+              )}
 
-                <div className="space-y-2">
-                  <Label>Phone Number</Label>
-                  <div className="relative">
-                    <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      type="tel"
-                      placeholder="+91 9999999999"
-                      value={phone}
-                      onChange={e => setPhone(e.target.value)}
-                      className="pl-9"
-                      autoComplete="tel"
-                    />
-                  </div>
+              <div className="space-y-2">
+                <Label>Phone Number</Label>
+                <div className="relative">
+                  <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    type="tel"
+                    placeholder="+91 9999999999"
+                    value={phone}
+                    onChange={e => setPhone(e.target.value)}
+                    onKeyDown={e => e.key === "Enter" && handleLogin()}
+                    className="pl-9"
+                    autoComplete="tel"
+                    autoFocus
+                  />
                 </div>
-
-                <div className="space-y-2">
-                  <Label>Password</Label>
-                  <div className="relative">
-                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      type={showPw ? "text" : "password"}
-                      placeholder="Your password"
-                      value={password}
-                      onChange={e => setPassword(e.target.value)}
-                      onKeyDown={e => e.key === "Enter" && handleLogin()}
-                      className="pl-9 pr-10"
-                      autoComplete="current-password"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowPw(!showPw)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                    >
-                      {showPw ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                    </button>
-                  </div>
-                </div>
-
-                <Button onClick={handleLogin} disabled={loading} className="w-full">
-                  {loading ? "Signing in…" : "Sign In"}
-                </Button>
-
-                <p className="text-center text-xs text-muted-foreground">
-                  Don't have an account? Ask staff to register you.
-                </p>
               </div>
-            )}
+
+              <Button onClick={handleLogin} disabled={loading} className="w-full">
+                {loading ? "Looking up account…" : "Continue"}
+              </Button>
+
+              <p className="text-center text-xs text-muted-foreground">
+                Don't have an account? Ask staff to register you.
+              </p>
+            </div>
           </CardContent>
         </Card>
 

@@ -11,59 +11,62 @@ import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import {
   Plus, Edit, Trash2, Search, Download, MessageSquare, Tag,
-  Star, Users, TrendingUp, Wallet, Phone, Mail, User,
-  UserCheck, ChevronDown, ChevronUp, Filter, Merge,
+  Star, Users, TrendingUp, Wallet, Phone, Mail,
+  UserCheck, ChevronDown, ChevronUp, Filter,
   AlertCircle, Check, Copy, X,
 } from "lucide-react";
 import { toast } from "sonner";
 
-// ─── Types ────────────────────────────────────────────────────────────────────
+// ─── Types — aligned with actual DB schema ───────────────────────────────────
+
+type MembershipType = "regular" | "premium" | "vip";
 
 type Customer = {
   id: string;
+  tenant_id: string;
   name: string;
   phone: string | null;
   email: string | null;
-  custom_id: string | null;
-  is_member: boolean | null;
-  membership_plan: string | null;
-  membership_start_date: string | null;
-  membership_expiry_date: string | null;
-  membership_duration: string | null;
-  membership_hours_left: number | null;
-  notes: string | null;
+  date_of_birth: string | null;
+  gender: string | null;
+  address: string | null;
+  membership_type: MembershipType;
   loyalty_points: number;
-  total_spent: number;
-  total_play_time: number | null;
-  visit_count: number | null;
+  total_spend: number;
+  visit_count: number;
   last_visit_at: string | null;
+  notes: string | null;
+  referral_code: string | null;
+  tags: string[];
+  is_portal_active: boolean;
   created_at: string;
 };
 
 type CustomerOffer = {
   id: string;
+  tenant_id: string;
   title: string;
   description: string | null;
-  offer_type: string;
-  value: number;
-  expiry_date: string | null;
+  type: string;
+  value: number | null;
+  valid_until: string | null;
+  is_active: boolean;
 };
 
 type OfferAssignment = {
   id: string;
   offer_id: string;
-  status: string;
-  promo_code: string | null;
-  assigned_at: string | null;
+  is_used: boolean;
+  used_at: string | null;
   offer?: CustomerOffer;
 };
 
-type SortField = "created_at" | "total_spent" | "loyalty_points" | "total_play_time";
+type SortField = "created_at" | "total_spend" | "loyalty_points" | "visit_count";
 type SortDir   = "asc" | "desc";
-type MemberTab = "all" | "member" | "non-member" | "active" | "expired";
+type MemberTab = "all" | "regular" | "premium" | "vip";
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -76,24 +79,16 @@ function fmtDate(iso: string | null) {
   return new Date(iso).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
 }
 
-function fmtPlayTime(secs: number | null) {
-  if (!secs) return "—";
-  const h = Math.floor(secs / 3600);
-  const m = Math.floor((secs % 3600) / 60);
-  return m ? `${h}h ${m}m` : `${h}h`;
-}
-
 function exportCSV(customers: Customer[], sym: string) {
-  const header = ["Name", "Phone", "Email", "Custom ID", "Member", "Loyalty Pts", `Total Spend (${sym})`, "Total Play Time", "Join Date"];
+  const header = ["Name", "Phone", "Email", "Membership", "Loyalty Pts", `Total Spend (${sym})`, "Visits", "Join Date"];
   const rows = customers.map(c => [
     c.name,
     c.phone ?? "",
     c.email ?? "",
-    c.custom_id ?? "",
-    c.is_member ? "Yes" : "No",
+    c.membership_type,
     c.loyalty_points,
-    c.total_spent.toFixed(2),
-    fmtPlayTime(c.total_play_time),
+    c.total_spend.toFixed(2),
+    c.visit_count,
     fmtDate(c.created_at),
   ]);
   const csv = [header, ...rows].map(r => r.map(v => `"${String(v).replace(/"/g, '""')}"`).join(",")).join("\n");
@@ -104,31 +99,29 @@ function exportCSV(customers: Customer[], sym: string) {
   URL.revokeObjectURL(url);
 }
 
-function getMemberStatus(c: Customer): "active" | "expired" | "none" {
-  if (!c.is_member) return "none";
-  if (c.membership_expiry_date && new Date(c.membership_expiry_date) < new Date()) return "expired";
-  return "active";
-}
+const MEMBER_BADGE: Record<MembershipType, string> = {
+  regular: "bg-muted text-muted-foreground",
+  premium: "bg-blue-500/10 text-blue-400 border-blue-500/20",
+  vip:     "bg-purple-500/10 text-purple-400 border-purple-500/20",
+};
 
 // ─── Insight widgets ──────────────────────────────────────────────────────────
 
 function InsightWidgets({ customers }: { customers: Customer[] }) {
   if (!customers.length) return null;
   const total = customers.length;
-  const activeMembers = customers.filter(c => getMemberStatus(c) === "active").length;
-  const avgLoyalty = Math.round(customers.reduce((a, c) => a + c.loyalty_points, 0) / total);
-  const avgLTV = Math.round(customers.reduce((a, c) => a + c.total_spent, 0) / total);
-
-  const tiles = [
-    { icon: Users,      label: "Total Customers",   value: total.toLocaleString("en-IN"),      color: "text-blue-400" },
-    { icon: UserCheck,  label: "Active Members",     value: activeMembers.toLocaleString("en-IN"), color: "text-emerald-400" },
-    { icon: Star,       label: "Avg Loyalty Points", value: avgLoyalty.toLocaleString("en-IN"), color: "text-yellow-400" },
-    { icon: TrendingUp, label: "Avg Lifetime Value", value: `₹${avgLTV.toLocaleString("en-IN")}`, color: "text-purple-400" },
-  ];
+  const premiumOrVip = customers.filter(c => c.membership_type !== "regular").length;
+  const avgLoyalty = Math.round(customers.reduce((a, c) => a + (c.loyalty_points ?? 0), 0) / total);
+  const avgLTV = Math.round(customers.reduce((a, c) => a + (c.total_spend ?? 0), 0) / total);
 
   return (
     <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-5">
-      {tiles.map(t => {
+      {[
+        { icon: Users,      label: "Total Customers",   value: total.toLocaleString("en-IN"),          color: "text-blue-400" },
+        { icon: UserCheck,  label: "Premium / VIP",     value: premiumOrVip.toLocaleString("en-IN"),   color: "text-emerald-400" },
+        { icon: Star,       label: "Avg Loyalty Points", value: avgLoyalty.toLocaleString("en-IN"),    color: "text-yellow-400" },
+        { icon: TrendingUp, label: "Avg Lifetime Value", value: `₹${avgLTV.toLocaleString("en-IN")}`, color: "text-purple-400" },
+      ].map(t => {
         const Icon = t.icon;
         return (
           <Card key={t.label}>
@@ -149,82 +142,50 @@ function InsightWidgets({ customers }: { customers: Customer[] }) {
 // ─── Customer card ────────────────────────────────────────────────────────────
 
 function CustomerCard({
-  c,
-  sym,
-  onEdit,
-  onDelete,
-  onWhatsApp,
-  onOffers,
+  c, sym, onEdit, onDelete, onWhatsApp, onOffers,
 }: {
-  c: Customer;
-  sym: string;
-  onEdit: (c: Customer) => void;
-  onDelete: (c: Customer) => void;
-  onWhatsApp: (c: Customer) => void;
-  onOffers: (c: Customer) => void;
+  c: Customer; sym: string;
+  onEdit: (c: Customer) => void; onDelete: (c: Customer) => void;
+  onWhatsApp: (c: Customer) => void; onOffers: (c: Customer) => void;
 }) {
-  const status = getMemberStatus(c);
   return (
     <Card className="hover:border-border/80 transition-colors">
       <CardContent className="p-4">
         <div className="flex items-start gap-3">
-          {/* Avatar */}
           <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
             <span className="text-sm font-semibold text-primary">{initials(c.name)}</span>
           </div>
-
           <div className="flex-1 min-w-0">
-            {/* Name + ID row */}
             <div className="flex items-center gap-2 flex-wrap">
               <span className="font-semibold text-foreground text-sm">{c.name}</span>
-              {c.custom_id && (
-                <code className="text-[10px] bg-muted px-1.5 py-0.5 rounded text-muted-foreground">{c.custom_id}</code>
-              )}
-              {status === "active" && <Badge variant="outline" className="h-4 text-[9px] px-1.5 text-emerald-400 border-emerald-500/30">Active Member</Badge>}
-              {status === "expired" && <Badge variant="outline" className="h-4 text-[9px] px-1.5 text-orange-400 border-orange-500/30">Expired</Badge>}
+              <Badge variant="outline" className={`h-4 text-[9px] px-1.5 ${MEMBER_BADGE[c.membership_type]}`}>
+                {c.membership_type === "vip" && <Star className="h-2.5 w-2.5 mr-0.5" />}
+                {c.membership_type}
+              </Badge>
             </div>
-
-            {/* Contact */}
             <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-0.5 text-xs text-muted-foreground">
               {c.phone && <span className="flex items-center gap-1"><Phone className="h-3 w-3" />{c.phone}</span>}
               {c.email && <span className="flex items-center gap-1"><Mail className="h-3 w-3" />{c.email}</span>}
             </div>
-
-            {/* Stats row */}
             <div className="flex flex-wrap gap-x-4 gap-y-0.5 mt-1.5 text-xs">
               <span className="flex items-center gap-1 text-yellow-500">
-                <Star className="h-3 w-3" />{c.loyalty_points.toLocaleString("en-IN")} pts
+                <Star className="h-3 w-3" />{(c.loyalty_points ?? 0).toLocaleString("en-IN")} pts
               </span>
               <span className="text-muted-foreground">
-                <Wallet className="h-3 w-3 inline mr-1" />{sym}{c.total_spent.toLocaleString("en-IN", { maximumFractionDigits: 0 })} spent
+                <Wallet className="h-3 w-3 inline mr-1" />
+                {sym}{(c.total_spend ?? 0).toLocaleString("en-IN", { maximumFractionDigits: 0 })} spent
               </span>
-              {c.total_play_time != null && (
-                <span className="text-muted-foreground">
-                  {fmtPlayTime(c.total_play_time)} played
-                </span>
-              )}
-              {c.last_visit_at && (
-                <span className="text-muted-foreground">Last: {fmtDate(c.last_visit_at)}</span>
-              )}
+              <span className="text-muted-foreground">{c.visit_count ?? 0} visits</span>
+              {c.last_visit_at && <span className="text-muted-foreground">Last: {fmtDate(c.last_visit_at)}</span>}
             </div>
           </div>
-
-          {/* Actions */}
           <div className="flex items-center gap-1 flex-shrink-0">
-            <Button size="sm" variant="ghost" className="h-7 w-7 p-0" title="Edit" onClick={() => onEdit(c)}>
-              <Edit className="h-3.5 w-3.5" />
-            </Button>
+            <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={() => onEdit(c)}><Edit className="h-3.5 w-3.5" /></Button>
             {c.phone && (
-              <Button size="sm" variant="ghost" className="h-7 w-7 p-0 text-emerald-500 hover:text-emerald-500" title="WhatsApp" onClick={() => onWhatsApp(c)}>
-                <MessageSquare className="h-3.5 w-3.5" />
-              </Button>
+              <Button size="sm" variant="ghost" className="h-7 w-7 p-0 text-emerald-500 hover:text-emerald-500" onClick={() => onWhatsApp(c)}><MessageSquare className="h-3.5 w-3.5" /></Button>
             )}
-            <Button size="sm" variant="ghost" className="h-7 w-7 p-0 text-primary hover:text-primary" title="Offers" onClick={() => onOffers(c)}>
-              <Tag className="h-3.5 w-3.5" />
-            </Button>
-            <Button size="sm" variant="ghost" className="h-7 w-7 p-0 text-destructive hover:text-destructive" title="Delete" onClick={() => onDelete(c)}>
-              <Trash2 className="h-3.5 w-3.5" />
-            </Button>
+            <Button size="sm" variant="ghost" className="h-7 w-7 p-0 text-primary hover:text-primary" onClick={() => onOffers(c)}><Tag className="h-3.5 w-3.5" /></Button>
+            <Button size="sm" variant="ghost" className="h-7 w-7 p-0 text-destructive hover:text-destructive" onClick={() => onDelete(c)}><Trash2 className="h-3.5 w-3.5" /></Button>
           </div>
         </div>
       </CardContent>
@@ -240,15 +201,14 @@ function WhatsAppDialog({ customer, open, onClose }: { customer: Customer | null
 
   const send = () => {
     const phone = (customer.phone ?? "").replace(/\D/g, "");
-    const url = `https://wa.me/${phone}?text=${encodeURIComponent(message)}`;
-    window.open(url, "_blank");
+    window.open(`https://wa.me/${phone}?text=${encodeURIComponent(message)}`, "_blank");
     onClose();
   };
 
   const templates = [
-    `Hi ${customer.name}, your loyalty balance is ${customer.loyalty_points} points. Book a session today!`,
+    `Hi ${customer.name}, your loyalty balance is ${customer.loyalty_points ?? 0} points. Book a session today!`,
     `Hi ${customer.name}! We have a special offer waiting for you. Visit us soon.`,
-    `Hi ${customer.name}, your membership is coming up for renewal. Contact us to renew.`,
+    `Hi ${customer.name}, thanks for being a valued customer. Hope to see you again soon!`,
   ];
 
   return (
@@ -256,21 +216,17 @@ function WhatsAppDialog({ customer, open, onClose }: { customer: Customer | null
       <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <MessageSquare className="h-4 w-4 text-emerald-500" />
-            WhatsApp — {customer.name}
+            <MessageSquare className="h-4 w-4 text-emerald-500" /> WhatsApp — {customer.name}
           </DialogTitle>
-          <DialogDescription>Compose a message to send via WhatsApp</DialogDescription>
+          <DialogDescription>Compose a message to open in WhatsApp</DialogDescription>
         </DialogHeader>
         <div className="space-y-3">
           <div>
             <Label className="text-xs text-muted-foreground mb-2 block">Quick templates</Label>
             <div className="space-y-1.5">
               {templates.map((t, i) => (
-                <button
-                  key={i}
-                  onClick={() => setMessage(t)}
-                  className="w-full text-left text-xs bg-muted hover:bg-muted/80 rounded p-2.5 text-muted-foreground hover:text-foreground transition-colors"
-                >
+                <button key={i} onClick={() => setMessage(t)}
+                  className="w-full text-left text-xs bg-muted hover:bg-muted/80 rounded p-2.5 text-muted-foreground hover:text-foreground transition-colors">
                   {t}
                 </button>
               ))}
@@ -278,20 +234,13 @@ function WhatsAppDialog({ customer, open, onClose }: { customer: Customer | null
           </div>
           <div>
             <Label>Message</Label>
-            <Textarea
-              value={message}
-              onChange={e => setMessage(e.target.value)}
-              rows={3}
-              className="mt-1.5"
-              placeholder="Type your message…"
-            />
+            <Textarea value={message} onChange={e => setMessage(e.target.value)} rows={3} className="mt-1.5" placeholder="Type your message…" />
           </div>
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>Cancel</Button>
           <Button onClick={send} disabled={!message.trim()} className="bg-emerald-600 hover:bg-emerald-700 text-white">
-            <MessageSquare className="h-4 w-4 mr-1.5" />
-            Open WhatsApp
+            <MessageSquare className="h-4 w-4 mr-1.5" /> Open WhatsApp
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -299,77 +248,50 @@ function WhatsAppDialog({ customer, open, onClose }: { customer: Customer | null
   );
 }
 
-// ─── Offers management dialog ──────────────────────────────────────────────────
+// ─── Offers management dialog ─────────────────────────────────────────────────
 
 function OffersDialog({ customer, tenantId, open, onClose }: {
-  customer: Customer | null;
-  tenantId: string;
-  open: boolean;
-  onClose: () => void;
+  customer: Customer | null; tenantId: string; open: boolean; onClose: () => void;
 }) {
   const [allOffers, setAllOffers] = useState<CustomerOffer[]>([]);
   const [assignments, setAssignments] = useState<OfferAssignment[]>([]);
   const [loading, setLoading] = useState(false);
   const [assigning, setAssigning] = useState<string | null>(null);
-  const [copiedCode, setCopiedCode] = useState<string | null>(null);
+  const [copiedId, setCopiedId] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (!open || !customer) return;
-    const load = async () => {
-      setLoading(true);
-      const [{ data: offers }, { data: assigns }] = await Promise.all([
-        supabase.from("customer_offers").select("*").eq("tenant_id", tenantId).order("created_at", { ascending: false }),
-        supabase.from("customer_offer_assignments").select("*, customer_offers(*)").eq("customer_id", customer.id),
-      ]);
-      setAllOffers((offers || []) as CustomerOffer[]);
-      const parsedAssigns: OfferAssignment[] = (assigns || []).map((a: Record<string, unknown>) => ({
-        id: a.id as string,
-        offer_id: a.offer_id as string,
-        status: a.status as string,
-        promo_code: a.promo_code as string | null,
-        assigned_at: a.assigned_at as string | null,
-        offer: a.customer_offers as CustomerOffer | undefined,
-      }));
-      setAssignments(parsedAssigns);
-      setLoading(false);
-    };
-    load();
-  }, [open, customer, tenantId]);
+  const loadOffers = useCallback(async () => {
+    if (!customer) return;
+    setLoading(true);
+    const [{ data: offers }, { data: assigns }] = await Promise.all([
+      supabase.from("customer_offers").select("*").eq("tenant_id", tenantId).eq("is_active", true),
+      supabase.from("customer_offer_assignments").select("*, customer_offers(*)").eq("customer_id", customer.id),
+    ]);
+    setAllOffers((offers || []) as unknown as CustomerOffer[]);
+    const parsed: OfferAssignment[] = (assigns || []).map((a: Record<string, unknown>) => ({
+      id: a.id as string,
+      offer_id: a.offer_id as string,
+      is_used: !!(a.is_used as boolean),
+      used_at: a.used_at as string | null,
+      offer: a.customer_offers as CustomerOffer | undefined,
+    }));
+    setAssignments(parsed);
+    setLoading(false);
+  }, [customer, tenantId]);
 
-  const assignedOfferIds = new Set(assignments.map(a => a.offer_id));
+  useEffect(() => { if (open) loadOffers(); }, [open, loadOffers]);
+
+  const assignedIds = new Set(assignments.map(a => a.offer_id));
 
   const assign = async (offerId: string) => {
     if (!customer) return;
     setAssigning(offerId);
-    const promo = Math.random().toString(36).substring(2, 8).toUpperCase();
     const { error } = await supabase.from("customer_offer_assignments").insert({
-      customer_id: customer.id,
-      offer_id: offerId,
-      status: "assigned",
-      promo_code: promo,
-      assigned_at: new Date().toISOString(),
+      tenant_id: tenantId, customer_id: customer.id, offer_id: offerId,
     });
     setAssigning(null);
     if (error) { toast.error(error.message); return; }
     toast.success("Offer assigned");
-    // Reload
-    const { data } = await supabase.from("customer_offer_assignments").select("*, customer_offers(*)").eq("customer_id", customer.id);
-    const parsed: OfferAssignment[] = (data || []).map((a: Record<string, unknown>) => ({
-      id: a.id as string,
-      offer_id: a.offer_id as string,
-      status: a.status as string,
-      promo_code: a.promo_code as string | null,
-      assigned_at: a.assigned_at as string | null,
-      offer: a.customer_offers as CustomerOffer | undefined,
-    }));
-    setAssignments(parsed);
-  };
-
-  const copyCode = (code: string, id: string) => {
-    navigator.clipboard.writeText(code);
-    setCopiedCode(id);
-    toast.success("Copied!");
-    setTimeout(() => setCopiedCode(null), 2000);
+    loadOffers();
   };
 
   if (!customer) return null;
@@ -379,70 +301,49 @@ function OffersDialog({ customer, tenantId, open, onClose }: {
       <DialogContent className="max-w-lg max-h-[80vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <Tag className="h-4 w-4 text-primary" />
-            Offers — {customer.name}
+            <Tag className="h-4 w-4 text-primary" /> Offers — {customer.name}
           </DialogTitle>
         </DialogHeader>
-
         {loading ? (
           <div className="space-y-2">{[...Array(3)].map((_, i) => <Skeleton key={i} className="h-12" />)}</div>
         ) : (
           <div className="space-y-5">
-            {/* Assigned offers */}
             {assignments.length > 0 && (
               <div>
                 <Label className="text-xs text-muted-foreground mb-2 block">Assigned Offers</Label>
                 <div className="space-y-2">
                   {assignments.map(a => (
                     <div key={a.id} className="flex items-center justify-between gap-3 p-2.5 rounded-lg bg-muted/40 border border-border/50">
-                      <div className="min-w-0">
-                        <p className="text-sm font-medium truncate">{a.offer?.title ?? "Offer"}</p>
-                        <p className="text-xs text-muted-foreground">{a.status}</p>
+                      <div>
+                        <p className="text-sm font-medium">{a.offer?.title ?? "Offer"}</p>
+                        <p className="text-xs text-muted-foreground">{a.is_used ? `Used ${a.used_at ? fmtDate(a.used_at) : ""}` : "Active"}</p>
                       </div>
-                      {a.promo_code && (
-                        <div className="flex items-center gap-1.5 flex-shrink-0">
-                          <code className="text-xs bg-background border rounded px-2 py-0.5">{a.promo_code}</code>
-                          <Button
-                            size="sm" variant="ghost"
-                            className="h-6 w-6 p-0"
-                            onClick={() => copyCode(a.promo_code!, a.id)}
-                          >
-                            {copiedCode === a.id ? <Check className="h-3 w-3 text-emerald-400" /> : <Copy className="h-3 w-3" />}
-                          </Button>
-                        </div>
-                      )}
+                      <Badge variant="outline" className={a.is_used ? "text-muted-foreground" : "text-emerald-400 border-emerald-500/30"}>
+                        {a.is_used ? "Used" : "Active"}
+                      </Badge>
                     </div>
                   ))}
                 </div>
               </div>
             )}
-
-            {/* Available offers */}
             <div>
-              <Label className="text-xs text-muted-foreground mb-2 block">Available Offers to Assign</Label>
-              {allOffers.filter(o => !assignedOfferIds.has(o.id)).length === 0 ? (
+              <Label className="text-xs text-muted-foreground mb-2 block">Available to Assign</Label>
+              {allOffers.filter(o => !assignedIds.has(o.id)).length === 0 ? (
                 <p className="text-sm text-muted-foreground text-center py-4">All offers already assigned</p>
               ) : (
                 <div className="space-y-2">
-                  {allOffers.filter(o => !assignedOfferIds.has(o.id)).map(o => (
+                  {allOffers.filter(o => !assignedIds.has(o.id)).map(o => (
                     <div key={o.id} className="flex items-center justify-between gap-3 p-2.5 rounded-lg border border-border/50">
-                      <div className="min-w-0">
-                        <p className="text-sm font-medium truncate">{o.title}</p>
+                      <div>
+                        <p className="text-sm font-medium">{o.title}</p>
                         <p className="text-xs text-muted-foreground">
-                          {o.offer_type === "percentage_discount" ? `${o.value}%` :
-                           o.offer_type === "flat_discount" ? `₹${o.value} off` :
-                           `${o.value}`}
-                          {o.expiry_date ? ` · Expires ${fmtDate(o.expiry_date)}` : ""}
+                          {o.value != null ? `Value: ${o.value}` : ""}
+                          {o.valid_until ? ` · Until ${fmtDate(o.valid_until)}` : ""}
                         </p>
                       </div>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="h-7 text-xs flex-shrink-0"
-                        onClick={() => assign(o.id)}
-                        disabled={assigning === o.id}
-                      >
-                        {assigning === o.id ? "Assigning…" : "Assign"}
+                      <Button size="sm" variant="outline" className="h-7 text-xs"
+                        onClick={() => assign(o.id)} disabled={assigning === o.id}>
+                        {assigning === o.id ? "…" : "Assign"}
                       </Button>
                     </div>
                   ))}
@@ -456,36 +357,26 @@ function OffersDialog({ customer, tenantId, open, onClose }: {
   );
 }
 
-// ─── Add / Edit dialog ────────────────────────────────────────────────────────
+// ─── Form types ───────────────────────────────────────────────────────────────
 
 type CustomerForm = {
   name: string; phone: string; email: string;
-  is_member: boolean; membership_plan: string;
-  membership_start_date: string; membership_expiry_date: string;
-  membership_duration: string; membership_hours_left: string;
-  notes: string;
+  membership_type: MembershipType; notes: string;
+  date_of_birth: string; gender: string; address: string;
 };
 
 const blankForm = (): CustomerForm => ({
   name: "", phone: "", email: "",
-  is_member: false, membership_plan: "",
-  membership_start_date: "", membership_expiry_date: "",
-  membership_duration: "", membership_hours_left: "",
-  notes: "",
+  membership_type: "regular", notes: "",
+  date_of_birth: "", gender: "", address: "",
 });
 
 function customerToForm(c: Customer): CustomerForm {
   return {
-    name: c.name,
-    phone: c.phone ?? "",
-    email: c.email ?? "",
-    is_member: c.is_member ?? false,
-    membership_plan: c.membership_plan ?? "",
-    membership_start_date: c.membership_start_date?.split("T")[0] ?? "",
-    membership_expiry_date: c.membership_expiry_date?.split("T")[0] ?? "",
-    membership_duration: c.membership_duration ?? "",
-    membership_hours_left: String(c.membership_hours_left ?? ""),
-    notes: c.notes ?? "",
+    name: c.name, phone: c.phone ?? "", email: c.email ?? "",
+    membership_type: c.membership_type ?? "regular", notes: c.notes ?? "",
+    date_of_birth: c.date_of_birth?.split("T")[0] ?? "",
+    gender: c.gender ?? "", address: c.address ?? "",
   };
 }
 
@@ -508,7 +399,6 @@ export default function Customers() {
   const [dateTo, setDateTo] = useState("");
   const [showFilters, setShowFilters] = useState(false);
 
-  // Dialogs
   const [editOpen, setEditOpen] = useState(false);
   const [editing, setEditing] = useState<Customer | null>(null);
   const [form, setForm] = useState<CustomerForm>(blankForm());
@@ -516,7 +406,6 @@ export default function Customers() {
 
   const [deleteTarget, setDeleteTarget] = useState<Customer | null>(null);
   const [deleting, setDeleting] = useState(false);
-
   const [whatsAppTarget, setWhatsAppTarget] = useState<Customer | null>(null);
   const [offersTarget, setOffersTarget] = useState<Customer | null>(null);
 
@@ -526,48 +415,35 @@ export default function Customers() {
     if (!tenantId) return;
     setLoading(true);
     const { data, error } = await supabase
-      .from("customers")
-      .select("*")
+      .from("customers").select("*")
       .eq("tenant_id", tenantId)
       .order("created_at", { ascending: false });
     if (error) toast.error(error.message);
-    setCustomers((data || []) as Customer[]);
+    setCustomers((data || []) as unknown as Customer[]);
     setLoading(false);
   }, [tenantId]);
 
   useEffect(() => { load(); }, [load]);
 
-  // Debounced search (client-side filter on loaded data for speed)
   useEffect(() => {
     if (debounceRef.current) clearTimeout(debounceRef.current);
-    debounceRef.current = setTimeout(() => {
-      // filter runs reactively — no separate effect needed
-    }, 200);
+    debounceRef.current = setTimeout(() => {}, 200);
     return () => { if (debounceRef.current) clearTimeout(debounceRef.current); };
   }, [search]);
 
-  // Filter + sort
   const filtered = customers
     .filter(c => {
       const q = search.toLowerCase();
       const matchSearch = !q ||
         c.name.toLowerCase().includes(q) ||
         (c.phone ?? "").includes(q) ||
-        (c.email ?? "").toLowerCase().includes(q) ||
-        (c.custom_id ?? "").toLowerCase().includes(q);
+        (c.email ?? "").toLowerCase().includes(q);
 
-      const status = getMemberStatus(c);
-      const matchTab =
-        memberTab === "all" ? true :
-        memberTab === "member" ? c.is_member :
-        memberTab === "non-member" ? !c.is_member :
-        memberTab === "active" ? status === "active" :
-        memberTab === "expired" ? status === "expired" :
-        true;
+      const matchTab = memberTab === "all" || c.membership_type === memberTab;
 
       const matchLoyalty =
-        (!minLoyalty || c.loyalty_points >= Number(minLoyalty)) &&
-        (!maxLoyalty || c.loyalty_points <= Number(maxLoyalty));
+        (!minLoyalty || (c.loyalty_points ?? 0) >= Number(minLoyalty)) &&
+        (!maxLoyalty || (c.loyalty_points ?? 0) <= Number(maxLoyalty));
 
       const joinDate = new Date(c.created_at);
       const matchDate =
@@ -577,8 +453,8 @@ export default function Customers() {
       return matchSearch && matchTab && matchLoyalty && matchDate;
     })
     .sort((a, b) => {
-      const va = a[sortField] as number | string | null ?? 0;
-      const vb = b[sortField] as number | string | null ?? 0;
+      const va = (a[sortField] ?? 0) as number | string;
+      const vb = (b[sortField] ?? 0) as number | string;
       if (va < vb) return sortDir === "asc" ? -1 : 1;
       if (va > vb) return sortDir === "asc" ? 1 : -1;
       return 0;
@@ -591,12 +467,9 @@ export default function Customers() {
 
   const SortIcon = ({ field }: { field: SortField }) =>
     sortField === field
-      ? sortDir === "asc"
-        ? <ChevronUp className="h-3 w-3 inline ml-0.5" />
-        : <ChevronDown className="h-3 w-3 inline ml-0.5" />
+      ? (sortDir === "asc" ? <ChevronUp className="h-3 w-3 inline ml-0.5" /> : <ChevronDown className="h-3 w-3 inline ml-0.5" />)
       : null;
 
-  // Add / Edit
   const openAdd = () => { setEditing(null); setForm(blankForm()); setEditOpen(true); };
   const openEdit = (c: Customer) => { setEditing(c); setForm(customerToForm(c)); setEditOpen(true); };
 
@@ -606,18 +479,12 @@ export default function Customers() {
     if (!tenantId) return;
     setSaving(true);
 
-    // Duplicate detection
     if (!editing) {
       const { data: dup } = await supabase
-        .from("customers")
-        .select("id, name")
-        .eq("tenant_id", tenantId)
-        .or(`phone.eq.${form.phone.trim()},email.eq.${form.email.trim()}`)
-        .maybeSingle();
-      if (dup) {
-        setSaving(false);
-        if (!confirm(`A customer with this phone/email already exists (${(dup as { name: string }).name}). Continue anyway?`)) return;
-        setSaving(true);
+        .from("customers").select("id, name").eq("tenant_id", tenantId)
+        .eq("phone", form.phone.trim()).maybeSingle();
+      if (dup && !confirm(`Phone already exists (${(dup as { name: string }).name}). Continue?`)) {
+        setSaving(false); return;
       }
     }
 
@@ -626,19 +493,15 @@ export default function Customers() {
       name: form.name.trim(),
       phone: form.phone.trim() || null,
       email: form.email.trim() || null,
-      is_member: form.is_member,
-      membership_plan: form.membership_plan || null,
-      membership_start_date: form.membership_start_date || null,
-      membership_expiry_date: form.membership_expiry_date || null,
-      membership_duration: form.membership_duration || null,
-      membership_hours_left: form.membership_hours_left ? Number(form.membership_hours_left) : null,
+      membership_type: form.membership_type,
       notes: form.notes || null,
+      date_of_birth: form.date_of_birth || null,
+      gender: form.gender || null,
+      address: form.address || null,
     };
-
     const { error } = editing
       ? await supabase.from("customers").update(payload).eq("id", editing.id)
       : await supabase.from("customers").insert(payload);
-
     setSaving(false);
     if (error) { toast.error(error.message); return; }
     toast.success(editing ? "Customer updated" : "Customer added");
@@ -646,7 +509,6 @@ export default function Customers() {
     load();
   };
 
-  // Delete
   const confirmDelete = async () => {
     if (!deleteTarget) return;
     setDeleting(true);
@@ -658,12 +520,15 @@ export default function Customers() {
     load();
   };
 
+  const SORT_LABELS: Record<SortField, string> = {
+    created_at: "Join date", total_spend: "Spend",
+    loyalty_points: "Loyalty", visit_count: "Visits",
+  };
   const MEMBER_TABS: { value: MemberTab; label: string }[] = [
     { value: "all", label: "All" },
-    { value: "member", label: "Members" },
-    { value: "non-member", label: "Non-members" },
-    { value: "active", label: "Active" },
-    { value: "expired", label: "Expired" },
+    { value: "regular", label: "Regular" },
+    { value: "premium", label: "Premium" },
+    { value: "vip", label: "VIP" },
   ];
 
   return (
@@ -683,7 +548,6 @@ export default function Customers() {
         }
       />
 
-      {/* Insight widgets */}
       {!loading && <InsightWidgets customers={customers} />}
 
       {/* Search + filter bar */}
@@ -691,52 +555,28 @@ export default function Customers() {
         <div className="flex gap-2 flex-wrap items-center">
           <div className="relative flex-1 min-w-[200px] max-w-sm">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Search name, phone, email, ID…"
-              className="pl-9"
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-            />
+            <Input placeholder="Search name, phone, email…" className="pl-9" value={search}
+              onChange={e => setSearch(e.target.value)} />
             {search && (
               <button onClick={() => setSearch("")} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground">
                 <X className="h-3.5 w-3.5" />
               </button>
             )}
           </div>
-          <Button
-            variant="outline"
-            size="sm"
-            className="gap-1.5"
-            onClick={() => setShowFilters(!showFilters)}
-          >
-            <Filter className="h-3.5 w-3.5" />
-            Filters
+          <Button variant="outline" size="sm" className="gap-1.5" onClick={() => setShowFilters(!showFilters)}>
+            <Filter className="h-3.5 w-3.5" /> Filters
             {showFilters ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
           </Button>
-
-          {/* Sort buttons */}
-          <div className="flex gap-1 ml-auto">
-            {(["created_at", "total_spent", "loyalty_points", "total_play_time"] as SortField[]).map(f => {
-              const labels: Record<SortField, string> = {
-                created_at: "Join date", total_spent: "Spend",
-                loyalty_points: "Loyalty", total_play_time: "Play time",
-              };
-              return (
-                <Button
-                  key={f}
-                  variant={sortField === f ? "secondary" : "ghost"}
-                  size="sm"
-                  className="h-7 text-xs"
-                  onClick={() => toggleSort(f)}
-                >
-                  {labels[f]}<SortIcon field={f} />
-                </Button>
-              );
-            })}
+          <div className="flex gap-1 ml-auto flex-wrap">
+            {(Object.keys(SORT_LABELS) as SortField[]).map(f => (
+              <Button key={f} variant={sortField === f ? "secondary" : "ghost"} size="sm" className="h-7 text-xs"
+                onClick={() => toggleSort(f)}>
+                {SORT_LABELS[f]}<SortIcon field={f} />
+              </Button>
+            ))}
           </div>
         </div>
 
-        {/* Expanded filters */}
         {showFilters && (
           <Card>
             <CardContent className="pt-4 pb-4">
@@ -758,12 +598,8 @@ export default function Customers() {
                   <Input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)} className="mt-1 h-8 text-sm" />
                 </div>
               </div>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="mt-3 h-7 text-xs text-muted-foreground"
-                onClick={() => { setMinLoyalty(""); setMaxLoyalty(""); setDateFrom(""); setDateTo(""); }}
-              >
+              <Button variant="ghost" size="sm" className="mt-3 h-7 text-xs text-muted-foreground"
+                onClick={() => { setMinLoyalty(""); setMaxLoyalty(""); setDateFrom(""); setDateTo(""); }}>
                 Clear filters
               </Button>
             </CardContent>
@@ -771,41 +607,27 @@ export default function Customers() {
         )}
       </div>
 
-      {/* Tabs */}
       <Tabs value={memberTab} onValueChange={v => setMemberTab(v as MemberTab)}>
         <TabsList className="mb-4">
           {MEMBER_TABS.map(t => <TabsTrigger key={t.value} value={t.value}>{t.label}</TabsTrigger>)}
         </TabsList>
-
         <TabsContent value={memberTab}>
           {loading ? (
             <div className="space-y-2">{[...Array(5)].map((_, i) => <Skeleton key={i} className="h-20" />)}</div>
           ) : filtered.length === 0 ? (
             <div className="text-center py-16">
               <Users className="h-10 w-10 text-muted-foreground mx-auto mb-3" />
-              <p className="text-muted-foreground">
-                {search ? `No customers matching "${search}"` : "No customers found"}
-              </p>
-              {!search && (
-                <Button onClick={openAdd} className="mt-4 gap-1.5">
-                  <Plus className="h-4 w-4" /> Add your first customer
-                </Button>
-              )}
+              <p className="text-muted-foreground">{search ? `No customers matching "${search}"` : "No customers found"}</p>
+              {!search && <Button onClick={openAdd} className="mt-4 gap-1.5"><Plus className="h-4 w-4" /> Add first customer</Button>}
             </div>
           ) : (
             <>
               <p className="text-xs text-muted-foreground mb-3">{filtered.length} customer{filtered.length !== 1 ? "s" : ""}</p>
               <div className="space-y-2">
                 {filtered.map(c => (
-                  <CustomerCard
-                    key={c.id}
-                    c={c}
-                    sym={sym}
-                    onEdit={openEdit}
-                    onDelete={setDeleteTarget}
-                    onWhatsApp={setWhatsAppTarget}
-                    onOffers={setOffersTarget}
-                  />
+                  <CustomerCard key={c.id} c={c} sym={sym}
+                    onEdit={openEdit} onDelete={setDeleteTarget}
+                    onWhatsApp={setWhatsAppTarget} onOffers={setOffersTarget} />
                 ))}
               </div>
             </>
@@ -813,12 +635,10 @@ export default function Customers() {
         </TabsContent>
       </Tabs>
 
-      {/* ── Add/Edit dialog ── */}
+      {/* Add/Edit dialog */}
       <Dialog open={editOpen} onOpenChange={setEditOpen}>
         <DialogContent className="max-w-md max-h-[85vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>{editing ? "Edit Customer" : "Add Customer"}</DialogTitle>
-          </DialogHeader>
+          <DialogHeader><DialogTitle>{editing ? "Edit Customer" : "Add Customer"}</DialogTitle></DialogHeader>
           <div className="space-y-4 py-1">
             <div className="grid grid-cols-2 gap-3">
               <div className="col-span-2">
@@ -833,57 +653,41 @@ export default function Customers() {
                 <Label>Email</Label>
                 <Input type="email" value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} className="mt-1.5" />
               </div>
-            </div>
-
-            {/* Membership */}
-            <div className="border border-border rounded-lg p-3 space-y-3">
-              <div className="flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  id="is_member"
-                  checked={form.is_member}
-                  onChange={e => setForm(f => ({ ...f, is_member: e.target.checked }))}
-                  className="h-4 w-4 rounded"
-                />
-                <Label htmlFor="is_member" className="cursor-pointer">Member</Label>
+              <div>
+                <Label>Membership</Label>
+                <Select value={form.membership_type} onValueChange={v => setForm(f => ({ ...f, membership_type: v as MembershipType }))}>
+                  <SelectTrigger className="mt-1.5"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="regular">Regular</SelectItem>
+                    <SelectItem value="premium">Premium</SelectItem>
+                    <SelectItem value="vip">VIP</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
-              {form.is_member && (
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <Label className="text-xs">Plan</Label>
-                    <Input value={form.membership_plan} onChange={e => setForm(f => ({ ...f, membership_plan: e.target.value }))} className="mt-1 h-8 text-sm" placeholder="e.g. Monthly" />
-                  </div>
-                  <div>
-                    <Label className="text-xs">Duration</Label>
-                    <Select value={form.membership_duration} onValueChange={v => setForm(f => ({ ...f, membership_duration: v }))}>
-                      <SelectTrigger className="mt-1 h-8 text-sm"><SelectValue placeholder="Select" /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="weekly">Weekly</SelectItem>
-                        <SelectItem value="monthly">Monthly</SelectItem>
-                        <SelectItem value="quarterly">Quarterly</SelectItem>
-                        <SelectItem value="annual">Annual</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div>
-                    <Label className="text-xs">Start date</Label>
-                    <Input type="date" value={form.membership_start_date} onChange={e => setForm(f => ({ ...f, membership_start_date: e.target.value }))} className="mt-1 h-8 text-sm" />
-                  </div>
-                  <div>
-                    <Label className="text-xs">Expiry date</Label>
-                    <Input type="date" value={form.membership_expiry_date} onChange={e => setForm(f => ({ ...f, membership_expiry_date: e.target.value }))} className="mt-1 h-8 text-sm" />
-                  </div>
-                  <div>
-                    <Label className="text-xs">Hours left</Label>
-                    <Input type="number" value={form.membership_hours_left} onChange={e => setForm(f => ({ ...f, membership_hours_left: e.target.value }))} className="mt-1 h-8 text-sm" placeholder="0" />
-                  </div>
-                </div>
-              )}
+              <div>
+                <Label>Date of Birth</Label>
+                <Input type="date" value={form.date_of_birth} onChange={e => setForm(f => ({ ...f, date_of_birth: e.target.value }))} className="mt-1.5" />
+              </div>
+              <div>
+                <Label>Gender</Label>
+                <Select value={form.gender || "_"} onValueChange={v => setForm(f => ({ ...f, gender: v === "_" ? "" : v }))}>
+                  <SelectTrigger className="mt-1.5"><SelectValue placeholder="Select" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="_">Not specified</SelectItem>
+                    <SelectItem value="male">Male</SelectItem>
+                    <SelectItem value="female">Female</SelectItem>
+                    <SelectItem value="other">Other</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="col-span-2">
+                <Label>Address</Label>
+                <Input value={form.address} onChange={e => setForm(f => ({ ...f, address: e.target.value }))} className="mt-1.5" />
+              </div>
             </div>
-
             <div>
               <Label>Notes</Label>
-              <Textarea value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} rows={2} className="mt-1.5" placeholder="Optional notes…" />
+              <Textarea value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} rows={2} className="mt-1.5" />
             </div>
           </div>
           <DialogFooter>
@@ -893,41 +697,22 @@ export default function Customers() {
         </DialogContent>
       </Dialog>
 
-      {/* ── Delete confirm ── */}
+      {/* Delete confirm */}
       <Dialog open={!!deleteTarget} onOpenChange={() => setDeleteTarget(null)}>
         <DialogContent className="max-w-sm">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <AlertCircle className="h-4 w-4 text-destructive" />
-              Delete Customer
-            </DialogTitle>
-            <DialogDescription>
-              This will permanently delete <strong>{deleteTarget?.name}</strong> and all associated data. This cannot be undone.
-            </DialogDescription>
+            <DialogTitle className="flex items-center gap-2"><AlertCircle className="h-4 w-4 text-destructive" /> Delete Customer</DialogTitle>
+            <DialogDescription>Permanently delete <strong>{deleteTarget?.name}</strong>? This cannot be undone.</DialogDescription>
           </DialogHeader>
           <DialogFooter>
             <Button variant="outline" onClick={() => setDeleteTarget(null)}>Cancel</Button>
-            <Button variant="destructive" onClick={confirmDelete} disabled={deleting}>
-              {deleting ? "Deleting…" : "Delete"}
-            </Button>
+            <Button variant="destructive" onClick={confirmDelete} disabled={deleting}>{deleting ? "Deleting…" : "Delete"}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      {/* ── WhatsApp dialog ── */}
-      <WhatsAppDialog
-        customer={whatsAppTarget}
-        open={!!whatsAppTarget}
-        onClose={() => setWhatsAppTarget(null)}
-      />
-
-      {/* ── Offers dialog ── */}
-      <OffersDialog
-        customer={offersTarget}
-        tenantId={tenantId}
-        open={!!offersTarget}
-        onClose={() => setOffersTarget(null)}
-      />
+      <WhatsAppDialog customer={whatsAppTarget} open={!!whatsAppTarget} onClose={() => setWhatsAppTarget(null)} />
+      <OffersDialog customer={offersTarget} tenantId={tenantId} open={!!offersTarget} onClose={() => setOffersTarget(null)} />
     </div>
   );
 }

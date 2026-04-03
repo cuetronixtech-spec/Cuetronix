@@ -1,152 +1,115 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { getCustomerSession } from "@/hooks/useCustomerSession";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Tag, Copy, Check, Clock, Zap, Gift, Percent, Star, Package } from "lucide-react";
+import { Tag, Clock, Zap, Gift, Percent, Star, Package } from "lucide-react";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/shared/PageHeader";
 
-// ─── Types ────────────────────────────────────────────────────────────────────
+// ─── Types — aligned with actual DB schema ────────────────────────────────────
 
 type OfferAssignment = {
   id: string;
-  status: "assigned" | "viewed" | "redeemed";
-  promo_code: string | null;
-  assigned_at: string | null;
-  viewed_at: string | null;
-  redeemed_at: string | null;
+  is_used: boolean;
+  used_at: string | null;
+  created_at: string | null;
   offer: {
     id: string;
     title: string;
     description: string | null;
-    offer_type: string;
-    value: number;
-    expiry_date: string | null;
-  };
+    type: string;           // actual column is "type" not "offer_type"
+    value: number | null;
+    valid_until: string | null;  // actual column is "valid_until" not "expiry_date"
+    image_url: string | null;
+    terms: string | null;
+  } | null;
 };
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 const OFFER_TYPE_META: Record<string, { label: string; icon: React.ElementType; color: string }> = {
-  percentage_discount: { label: "% Discount",    icon: Percent,  color: "text-blue-400" },
-  flat_discount:       { label: "Flat Discount",  icon: Tag,      color: "text-emerald-400" },
-  free_hours:          { label: "Free Hours",     icon: Clock,    color: "text-purple-400" },
-  loyalty_bonus:       { label: "Loyalty Bonus",  icon: Star,     color: "text-yellow-400" },
-  free_product:        { label: "Free Product",   icon: Package,  color: "text-pink-400" },
-  custom:              { label: "Special Offer",  icon: Gift,     color: "text-orange-400" },
+  discount:   { label: "Discount",     icon: Percent, color: "text-blue-400" },
+  free_session: { label: "Free Session", icon: Zap,   color: "text-emerald-400" },
+  cashback:   { label: "Cashback",     icon: Star,    color: "text-yellow-400" },
+  combo:      { label: "Combo Deal",   icon: Package, color: "text-purple-400" },
+  freebie:    { label: "Freebie",      icon: Gift,    color: "text-pink-400" },
+  custom:     { label: "Special Offer",icon: Tag,     color: "text-orange-400" },
 };
 
-function offerValueLabel(type: string, value: number): string {
-  if (type === "percentage_discount") return `${value}% off`;
-  if (type === "flat_discount")       return `₹${value} off`;
-  if (type === "free_hours")          return `${value} hour${value !== 1 ? "s" : ""} free`;
-  if (type === "loyalty_bonus")       return `+${value} loyalty points`;
-  return String(value);
+function offerValueLabel(type: string, value: number | null): string {
+  if (value == null) return "";
+  if (type === "discount" || type === "cashback") return `${value}% off`;
+  return `Value: ${value}`;
 }
 
-function fmtDate(iso: string) {
-  return new Date(iso).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
+function fmtDate(dateStr: string) {
+  return new Date(dateStr + "T00:00:00").toLocaleDateString("en-IN", {
+    day: "numeric", month: "short", year: "numeric",
+  });
 }
 
-function isExpired(expiry: string | null): boolean {
-  if (!expiry) return false;
-  return new Date(expiry) < new Date();
+function isExpired(validUntil: string | null): boolean {
+  if (!validUntil) return false;
+  return new Date(validUntil) < new Date();
 }
 
 // ─── Offer card ───────────────────────────────────────────────────────────────
 
-function OfferCard({
-  assignment,
-  onMarkViewed,
-}: {
-  assignment: OfferAssignment;
-  onMarkViewed: (id: string) => void;
-}) {
-  const [copied, setCopied] = useState(false);
-  const { offer, status, promo_code } = assignment;
-  const meta = OFFER_TYPE_META[offer.offer_type] ?? OFFER_TYPE_META.custom;
+function OfferCard({ assignment }: { assignment: OfferAssignment }) {
+  const { offer, is_used, used_at } = assignment;
+  if (!offer) return null;
+
+  const meta = OFFER_TYPE_META[offer.type] ?? OFFER_TYPE_META.custom;
   const Icon = meta.icon;
-  const expired = isExpired(offer.expiry_date);
-
-  const copyCode = async () => {
-    if (!promo_code) return;
-    await navigator.clipboard.writeText(promo_code);
-    setCopied(true);
-    toast.success("Promo code copied!");
-    setTimeout(() => setCopied(false), 2000);
-
-    if (status === "assigned") {
-      onMarkViewed(assignment.id);
-    }
-  };
-
-  const statusBadge = status === "redeemed"
-    ? <Badge variant="outline" className="text-xs bg-muted text-muted-foreground">Redeemed</Badge>
-    : expired
-    ? <Badge variant="outline" className="text-xs bg-red-500/10 text-red-400 border-red-500/20">Expired</Badge>
-    : status === "assigned"
-    ? <Badge variant="outline" className="text-xs bg-blue-500/10 text-blue-400 border-blue-500/20 animate-pulse">New</Badge>
-    : null;
+  const expired = isExpired(offer.valid_until);
+  const valueLabel = offerValueLabel(offer.type, offer.value);
 
   return (
-    <Card className={expired || status === "redeemed" ? "opacity-60" : undefined}>
+    <Card className={is_used || expired ? "opacity-60" : undefined}>
       <CardContent className="p-4">
         <div className="flex items-start gap-3">
-          {/* Icon tile */}
           <div className={`h-10 w-10 rounded-xl bg-muted flex items-center justify-center flex-shrink-0 ${meta.color}`}>
             <Icon className="h-5 w-5" />
           </div>
-
           <div className="flex-1 min-w-0">
-            {/* Title row */}
             <div className="flex items-start justify-between gap-2 flex-wrap mb-1">
               <div>
                 <h3 className="font-semibold text-sm text-foreground">{offer.title}</h3>
-                <p className={`text-sm font-semibold ${meta.color}`}>
-                  {offerValueLabel(offer.offer_type, offer.value)}
-                </p>
+                {valueLabel && <p className={`text-sm font-semibold ${meta.color}`}>{valueLabel}</p>}
               </div>
-              {statusBadge}
+              {is_used ? (
+                <Badge variant="outline" className="text-xs bg-muted text-muted-foreground">Used</Badge>
+              ) : expired ? (
+                <Badge variant="outline" className="text-xs bg-red-500/10 text-red-400 border-red-500/20">Expired</Badge>
+              ) : (
+                <Badge variant="outline" className="text-xs bg-emerald-500/10 text-emerald-400 border-emerald-500/20">Active</Badge>
+              )}
             </div>
 
-            {/* Description */}
             {offer.description && (
               <p className="text-xs text-muted-foreground mb-2">{offer.description}</p>
             )}
 
-            {/* Type + expiry */}
-            <div className="flex flex-wrap gap-2 text-xs text-muted-foreground mb-3">
+            <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
               <span className="flex items-center gap-1">
                 <Zap className="h-3 w-3" /> {meta.label}
               </span>
-              {offer.expiry_date && (
+              {offer.valid_until && (
                 <span className={`flex items-center gap-1 ${expired ? "text-red-400" : ""}`}>
                   <Clock className="h-3 w-3" />
-                  {expired ? "Expired" : "Expires"} {fmtDate(offer.expiry_date)}
+                  {expired ? "Expired" : "Until"} {fmtDate(offer.valid_until)}
                 </span>
+              )}
+              {is_used && used_at && (
+                <span className="text-muted-foreground">Used on {fmtDate(used_at)}</span>
               )}
             </div>
 
-            {/* Promo code */}
-            {promo_code && status !== "redeemed" && !expired && (
-              <div className="flex items-center gap-2">
-                <code className="flex-1 text-xs font-mono bg-muted border border-border rounded px-3 py-1.5 text-foreground tracking-widest">
-                  {promo_code}
-                </code>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="h-8 gap-1 text-xs"
-                  onClick={copyCode}
-                >
-                  {copied ? <Check className="h-3 w-3 text-emerald-400" /> : <Copy className="h-3 w-3" />}
-                  {copied ? "Copied!" : "Copy"}
-                </Button>
-              </div>
+            {offer.terms && (
+              <p className="text-[10px] text-muted-foreground mt-2 italic">{offer.terms}</p>
             )}
           </div>
         </div>
@@ -165,62 +128,30 @@ export default function CustomerOffers() {
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState("active");
 
-  const load = async () => {
+  useEffect(() => {
     if (!customerId) return;
     setLoading(true);
-    const { data, error } = await supabase
+    supabase
       .from("customer_offer_assignments")
-      .select(`
-        id, status, promo_code, assigned_at, viewed_at, redeemed_at,
-        customer_offers ( id, title, description, offer_type, value, expiry_date )
-      `)
+      .select("id, is_used, used_at, created_at, customer_offers(id, title, description, type, value, valid_until, image_url, terms)")
       .eq("customer_id", customerId)
-      .order("assigned_at", { ascending: false });
+      .order("created_at", { ascending: false })
+      .then(({ data, error }) => {
+        if (error) toast.error(error.message);
+        const parsed: OfferAssignment[] = ((data || []) as unknown as Record<string, unknown>[]).map(r => ({
+          id: r.id as string,
+          is_used: !!(r.is_used as boolean),
+          used_at: r.used_at as string | null,
+          created_at: r.created_at as string | null,
+          offer: r.customer_offers as OfferAssignment["offer"],
+        }));
+        setAssignments(parsed);
+        setLoading(false);
+      });
+  }, [customerId]);
 
-    if (error) toast.error(error.message);
-
-    const rows = (data || []) as unknown[];
-    const parsed: OfferAssignment[] = rows.map((r) => {
-      const row = r as Record<string, unknown>;
-      const co = row.customer_offers as Record<string, unknown>;
-      return {
-        id: row.id as string,
-        status: row.status as OfferAssignment["status"],
-        promo_code: row.promo_code as string | null,
-        assigned_at: row.assigned_at as string | null,
-        viewed_at: row.viewed_at as string | null,
-        redeemed_at: row.redeemed_at as string | null,
-        offer: {
-          id: co?.id as string,
-          title: co?.title as string ?? "Offer",
-          description: co?.description as string | null ?? null,
-          offer_type: co?.offer_type as string ?? "custom",
-          value: co?.value as number ?? 0,
-          expiry_date: co?.expiry_date as string | null ?? null,
-        },
-      };
-    });
-
-    setAssignments(parsed);
-    setLoading(false);
-  };
-
-  useEffect(() => { load(); }, [customerId]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  const markViewed = async (assignmentId: string) => {
-    await supabase
-      .from("customer_offer_assignments")
-      .update({ status: "viewed", viewed_at: new Date().toISOString() })
-      .eq("id", assignmentId)
-      .eq("status", "assigned");
-    setAssignments(prev =>
-      prev.map(a => a.id === assignmentId && a.status === "assigned" ? { ...a, status: "viewed" } : a)
-    );
-  };
-
-  const active = assignments.filter(a => a.status === "assigned" || a.status === "viewed");
-  const redeemed = assignments.filter(a => a.status === "redeemed");
-  const newCount = assignments.filter(a => a.status === "assigned").length;
+  const active = assignments.filter(a => !a.is_used);
+  const used   = assignments.filter(a => a.is_used);
 
   return (
     <div className="space-y-5">
@@ -230,11 +161,11 @@ export default function CustomerOffers() {
         <TabsList>
           <TabsTrigger value="active" className="gap-1.5">
             Active
-            {newCount > 0 && (
-              <Badge variant="default" className="h-4 text-[10px] px-1.5">{newCount}</Badge>
+            {active.length > 0 && (
+              <Badge variant="default" className="h-4 text-[10px] px-1.5">{active.length}</Badge>
             )}
           </TabsTrigger>
-          <TabsTrigger value="redeemed">Redeemed</TabsTrigger>
+          <TabsTrigger value="used">Used</TabsTrigger>
         </TabsList>
 
         <TabsContent value="active" className="mt-4">
@@ -250,26 +181,22 @@ export default function CustomerOffers() {
             </div>
           ) : (
             <div className="space-y-3">
-              {active.map(a => (
-                <OfferCard key={a.id} assignment={a} onMarkViewed={markViewed} />
-              ))}
+              {active.map(a => <OfferCard key={a.id} assignment={a} />)}
             </div>
           )}
         </TabsContent>
 
-        <TabsContent value="redeemed" className="mt-4">
+        <TabsContent value="used" className="mt-4">
           {loading ? (
             <div className="space-y-3">{[...Array(2)].map((_, i) => <Skeleton key={i} className="h-24" />)}</div>
-          ) : redeemed.length === 0 ? (
+          ) : used.length === 0 ? (
             <div className="text-center py-16">
               <Gift className="h-10 w-10 text-muted-foreground mx-auto mb-3" />
-              <p className="text-muted-foreground text-sm">No redeemed offers yet</p>
+              <p className="text-muted-foreground text-sm">No used offers yet</p>
             </div>
           ) : (
             <div className="space-y-3">
-              {redeemed.map(a => (
-                <OfferCard key={a.id} assignment={a} onMarkViewed={markViewed} />
-              ))}
+              {used.map(a => <OfferCard key={a.id} assignment={a} />)}
             </div>
           )}
         </TabsContent>
