@@ -135,7 +135,7 @@ export default function StationCard({ station, session, customer, customers, cou
     await supabase.from("stations").update({ is_occupied: false }).eq("id", station.id);
     toast.success("Session ended — redirecting to POS…");
     onRefresh();
-    setTimeout(() => { window.location.href = "/pos"; }, 1500);
+    setTimeout(() => { window.location.href = `/pos?session=${session.id}`; }, 1500);
   };
 
   const handleDelete = async () => {
