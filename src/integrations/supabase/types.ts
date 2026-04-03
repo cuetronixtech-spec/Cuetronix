@@ -220,10 +220,17 @@ export interface TenantConfig {
 
 export interface BookingCoupon {
   code: string;
-  type: 'percent' | 'flat';
+  /** percent: value% off base rate; flat: subtract value from rate; fixed: override rate to value */
+  type: 'percent' | 'flat' | 'fixed';
   value: number;
   max_uses: number;
   uses: number;
+  /** Optional: only valid Mon–Fri between happy_hour_start and happy_hour_end (HH:MM 24h) */
+  happy_hour_start?: string;
+  happy_hour_end?: string;
+  happy_hour_days?: number[]; // 0=Sun,1=Mon…6=Sat — if absent, any day
+  /** Show a reminder alert when applied */
+  verify_note?: string;
 }
 
 export interface OnboardingProgress {

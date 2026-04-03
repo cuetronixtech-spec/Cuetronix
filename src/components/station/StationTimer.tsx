@@ -7,10 +7,10 @@ type Props = {
   stationType: string;
   isMember: boolean;
   sym: string;
-  /** Initial session data from parent; component will re-fetch for accuracy */
   initialRate?: number;
   initialStartedAt?: string;
-  initialCouponCode?: string | null;
+  couponLabel?: string | null;  // e.g. "HH99" shown when coupon was applied
+  originalRate?: number;        // base rate before coupon (for "saving" display)
 };
 
 function calcCost(elapsedMs: number, rate: number, stationType: string, isMember: boolean): number {
@@ -20,8 +20,7 @@ function calcCost(elapsedMs: number, rate: number, stationType: string, isMember
   if (stationType === "darts") {
     raw = Math.ceil(elapsedMins / 15) * rate;
   } else {
-    const elapsedHours = elapsedMins / 60;
-    raw = Math.ceil(elapsedHours * rate);
+    raw = Math.ceil((elapsedMins / 60) * rate);
   }
   return isMember ? Math.ceil(raw * 0.5) : raw;
 }
@@ -34,18 +33,16 @@ function fmtElapsed(ms: number): string {
   return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
 }
 
-export default function StationTimer({ stationId, stationType, isMember, sym, initialRate = 0, initialStartedAt, initialCouponCode }: Props) {
+export default function StationTimer({ stationId, stationType, isMember, sym, initialRate = 0, initialStartedAt, couponLabel, originalRate }: Props) {
   const [elapsed, setElapsed] = useState(0);
   const [sessionRate, setSessionRate] = useState(initialRate);
-  const [originalRate, setOriginalRate] = useState(initialRate);
-  const [couponCode, setCouponCode] = useState<string | null>(initialCouponCode || null);
   const startTimeRef = useRef<number>(initialStartedAt ? new Date(initialStartedAt).getTime() : Date.now());
 
-  // Fetch authoritative session data on mount
+  // Fetch authoritative session start_time and rate on mount
   useEffect(() => {
     supabase
       .from("sessions")
-      .select("id, started_at, rate_per_hour, coupon_code")
+      .select("id, started_at, rate_per_hour")
       .eq("station_id", stationId)
       .eq("status", "active")
       .single()
@@ -54,13 +51,9 @@ export default function StationTimer({ stationId, stationType, isMember, sym, in
         startTimeRef.current = new Date(data.started_at).getTime();
         const rate = Number(data.rate_per_hour) || 0;
         setSessionRate(rate);
-        const cc = (data as Record<string, unknown>).coupon_code as string | null;
-        setCouponCode(cc || null);
-        setOriginalRate(cc && rate > 0 ? rate : initialRate);
       });
-  }, [stationId]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [stationId]);
 
-  // Tick every second
   useEffect(() => {
     const tick = () => setElapsed(Date.now() - startTimeRef.current);
     tick();
@@ -69,22 +62,19 @@ export default function StationTimer({ stationId, stationType, isMember, sym, in
   }, []);
 
   const cost = calcCost(elapsed, sessionRate, stationType, isMember);
-  const savingPerHr = originalRate - sessionRate;
-  const hasDiscount = couponCode && savingPerHr > 0;
+  const hasDiscount = couponLabel && originalRate && originalRate > sessionRate;
+  const saving = hasDiscount ? originalRate - sessionRate : 0;
 
   return (
     <div className="space-y-2">
-      {/* Timer display */}
+      {/* Timer */}
       <div className="bg-black/80 rounded-lg p-3 text-center border border-white/10">
         <p className="font-mono text-3xl font-bold tracking-wider text-white">{fmtElapsed(elapsed)}</p>
         <p className="text-sm text-white/70 mt-1">
-          Current Cost: <span className="font-bold text-white">{sym}{cost.toLocaleString()}</span>
-          {couponCode && sessionRate !== originalRate && (
-            <span className="ml-2 text-xs text-white/40">
-              @ {sym}{sessionRate}/hr
-              {` `}
-              <span className="line-through text-white/30">{sym}{originalRate}/hr</span>
-            </span>
+          Current Cost:{" "}
+          <span className="font-bold text-white">{sym}{cost.toLocaleString()}</span>
+          {couponLabel && (
+            <span className="ml-2 text-xs text-orange-400">[{couponLabel}]</span>
           )}
         </p>
       </div>
@@ -103,14 +93,14 @@ export default function StationTimer({ stationId, stationType, isMember, sym, in
             <span className="text-xs text-white/30 line-through">{sym}{originalRate}/hr</span>
             <span className="text-lg font-bold text-orange-400">{sessionRate === 0 ? "FREE" : `${sym}${sessionRate}/hr`}</span>
           </div>
-          {savingPerHr > 0 && (
-            <p className="text-xs text-orange-400/80 mt-0.5">Saving {sym}{savingPerHr}/hr</p>
-          )}
+          {saving > 0 && <p className="text-xs text-orange-400/80 mt-0.5">Saving {sym}{saving}/hr</p>}
         </div>
       ) : (
         <div className="rounded-lg p-2.5 border border-purple-500/20 bg-purple-500/10">
           <p className="text-xs text-purple-300/70 mb-0.5">Current Rate</p>
-          <p className="text-sm font-semibold text-purple-300">{sym}{sessionRate}/{stationType === "darts" ? "15min" : "hr"}</p>
+          <p className="text-sm font-semibold text-purple-300">
+            {sym}{sessionRate}/{stationType === "darts" ? "15min" : "hr"}
+          </p>
         </div>
       )}
     </div>

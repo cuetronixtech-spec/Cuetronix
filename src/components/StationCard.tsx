@@ -1,4 +1,5 @@
 import { useState } from "react";
+import type { BookingCoupon } from "@/integrations/supabase/types";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
@@ -69,25 +70,25 @@ type Station = {
   is_active: boolean; is_occupied: boolean; event_enabled?: boolean;
 };
 type Customer = { id: string; name: string; phone: string | null; membership_type: string };
-type Session = { id: string; station_id: string; customer_id: string | null; started_at: string; rate_per_hour: number | null; coupon_code?: string | null };
+type Session = { id: string; station_id: string; customer_id: string | null; started_at: string; rate_per_hour: number | null };
 
 type Props = {
   station: Station;
   session: Session | null;
   customer: Customer | null;
   customers: Customer[];
+  coupons: BookingCoupon[];
   tenantId: string;
   sym: string;
   animDelay: number;
   onRefresh: () => void;
 };
 
-export default function StationCard({ station, session, customer, customers, tenantId, sym, animDelay, onRefresh }: Props) {
+export default function StationCard({ station, session, customer, customers, coupons, tenantId, sym, animDelay, onRefresh }: Props) {
   const cfg = TYPE_CONFIG[station.type] || TYPE_CONFIG.other;
   const cs = cfg.colorScheme;
   const isOccupied = station.is_occupied;
   const isMember = isMembershipActive(customer);
-  const couponCode = session?.coupon_code || null;
 
   const [eventEnabled, setEventEnabled] = useState(station.event_enabled !== false);
   const [togglingEvent, setTogglingEvent] = useState(false);
@@ -95,6 +96,7 @@ export default function StationCard({ station, session, customer, customers, ten
   const [editOpen, setEditOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [endingSession, setEndingSession] = useState(false);
+  const [appliedCoupon, setAppliedCoupon] = useState<{ code: string; originalRate: number } | null>(null);
 
   const Icon = cfg.icon;
 
@@ -110,12 +112,17 @@ export default function StationCard({ station, session, customer, customers, ten
   };
 
   const handleStartSession = async (customerId: string, finalRate: number, coupon: string | null) => {
-    const { error: sessErr } = await supabase.from("sessions").insert({
+    const basePayload = {
       tenant_id: tenantId, station_id: station.id, customer_id: customerId,
-      started_at: new Date().toISOString(), rate_per_hour: finalRate,
-      coupon_code: coupon, status: "active",
-    });
-    if (sessErr) throw sessErr;
+      started_at: new Date().toISOString(), rate_per_hour: finalRate, status: "active",
+    };
+    // Try inserting with coupon_code (requires migration 012). Fall back without if column missing.
+    let { error } = await supabase.from("sessions").insert({ ...basePayload, coupon_code: coupon } as Record<string, unknown>);
+    if (error) {
+      ({ error } = await supabase.from("sessions").insert(basePayload));
+    }
+    if (error) throw error;
+    if (coupon) setAppliedCoupon({ code: coupon, originalRate: station.rate_per_hour });
     await supabase.from("stations").update({ is_occupied: true }).eq("id", station.id);
     toast.success("Session started!");
     onRefresh();
@@ -215,9 +222,9 @@ export default function StationCard({ station, session, customer, customers, ten
       )}
 
       {/* Coupon badge */}
-      {isOccupied && couponCode && (
+      {isOccupied && appliedCoupon?.code && (
         <div className="absolute top-2 right-2 animate-pulse">
-          <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-orange-500 text-white border border-orange-400">{couponCode}</span>
+          <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-orange-500 text-white border border-orange-400">{appliedCoupon.code}</span>
         </div>
       )}
 
@@ -269,7 +276,8 @@ export default function StationCard({ station, session, customer, customers, ten
             sym={sym}
             initialRate={Number(session.rate_per_hour) || station.rate_per_hour}
             initialStartedAt={session.started_at}
-            initialCouponCode={couponCode}
+            couponLabel={appliedCoupon?.code ?? null}
+            originalRate={appliedCoupon?.originalRate}
           />
         </div>
       )}
@@ -311,6 +319,7 @@ export default function StationCard({ station, session, customer, customers, ten
         onClose={() => setStartOpen(false)}
         onConfirm={handleStartSession}
         customers={customers}
+        coupons={coupons}
         baseRate={station.rate_per_hour}
         sym={sym}
       />

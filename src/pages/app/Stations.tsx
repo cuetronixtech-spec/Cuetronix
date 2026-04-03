@@ -26,7 +26,7 @@ type Customer = { id: string; name: string; phone: string | null; membership_typ
 
 type Session = {
   id: string; station_id: string; customer_id: string | null;
-  started_at: string; rate_per_hour: number | null; coupon_code?: string | null;
+  started_at: string; rate_per_hour: number | null;
 };
 
 const STATION_TYPES = ["snooker", "pool", "gaming", "darts", "bowling", "other"] as const;
@@ -63,6 +63,7 @@ export default function Stations() {
   const { config } = useTenant();
   const tenantId = config?.tenant_id;
   const sym = config?.currency_symbol || "₹";
+  const coupons = (config?.booking_coupons || []) as import("@/integrations/supabase/types").BookingCoupon[];
 
   const [stations, setStations] = useState<Station[]>([]);
   const [customers, setCustomers] = useState<Customer[]>([]);
@@ -80,7 +81,7 @@ export default function Stations() {
     const [stRes, cuRes, sessRes] = await Promise.all([
       supabase.from("stations").select("*").eq("tenant_id", tenantId).order("display_order").order("created_at"),
       supabase.from("customers").select("id,name,phone,membership_type").eq("tenant_id", tenantId).order("name"),
-      supabase.from("sessions").select("id,station_id,customer_id,started_at,rate_per_hour,coupon_code").eq("tenant_id", tenantId).eq("status", "active"),
+      supabase.from("sessions").select("id,station_id,customer_id,started_at,rate_per_hour").eq("tenant_id", tenantId).eq("status", "active"),
     ]);
     if (stRes.error) toast.error(stRes.error.message);
     if (cuRes.error) toast.error(cuRes.error.message);
@@ -219,6 +220,7 @@ export default function Stations() {
                       session={session}
                       customer={customer}
                       customers={customers}
+                      coupons={coupons}
                       tenantId={tenantId || ""}
                       sym={sym}
                       animDelay={delay}

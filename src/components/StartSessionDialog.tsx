@@ -5,50 +5,65 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Check, User } from "lucide-react";
+import { Check, User, Tag } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { isMembershipActive } from "@/components/station/StationInfo";
+import type { BookingCoupon } from "@/integrations/supabase/types";
+
+// ── Types ──────────────────────────────────────────────────────────────────
 
 type Customer = { id: string; name: string; phone: string | null; membership_type: string };
-
-type CouponDef = {
-  code: string;
-  label: string;
-  getRate: (base: number) => number;
-  happyHourOnly?: boolean;
-  requiresStudentId?: boolean;
-  requiresVerification?: boolean;
-};
-
-const COUPONS: CouponDef[] = [
-  { code: "NONE", label: "No Coupon — full price", getRate: r => r },
-  { code: "HH99", label: "HH99 — Happy Hour ₹99/hr (Mon–Fri 11 AM–4 PM)", getRate: () => 99, happyHourOnly: true },
-  { code: "CUEPHORIA20", label: "CUEPHORIA20 — 20% off", getRate: r => Math.round(r * 0.8) },
-  { code: "CUEPHORIA35", label: "CUEPHORIA35 — 35% off (Student ID required)", getRate: r => Math.round(r * 0.65), requiresStudentId: true },
-  { code: "NIT35", label: "NIT35 — 35% off (NIT students)", getRate: r => Math.round(r * 0.65) },
-  { code: "AAVEG50", label: "AAVEG50 — 50% off (NIT freshers)", getRate: r => Math.round(r * 0.5) },
-  { code: "GAMEINSIDER50", label: "GAMEINSIDER50 — 50% off (GameInsider)", getRate: r => Math.round(r * 0.5), requiresVerification: true },
-  { code: "AXEIST", label: "AXEIST — VIP Free (₹0)", getRate: () => 0 },
-];
-
-function isHappyHour(): boolean {
-  const d = new Date();
-  const day = d.getDay();
-  const mins = d.getHours() * 60 + d.getMinutes();
-  return day >= 1 && day <= 5 && mins >= 11 * 60 && mins < 16 * 60;
-}
 
 type Props = {
   open: boolean;
   onClose: () => void;
   onConfirm: (customerId: string, finalRate: number, couponCode: string | null) => Promise<void>;
   customers: Customer[];
+  coupons: BookingCoupon[];
   baseRate: number;
   sym: string;
 };
 
-export default function StartSessionDialog({ open, onClose, onConfirm, customers, baseRate, sym }: Props) {
+// ── Helpers ────────────────────────────────────────────────────────────────
+
+function applyDiscount(coupon: BookingCoupon, baseRate: number): number {
+  switch (coupon.type) {
+    case "percent":  return Math.round(baseRate * (1 - coupon.value / 100));
+    case "flat":     return Math.max(0, baseRate - coupon.value);
+    case "fixed":    return coupon.value;
+    default:         return baseRate;
+  }
+}
+
+function couponLabel(coupon: BookingCoupon, sym: string): string {
+  switch (coupon.type) {
+    case "percent": return `${coupon.code} — ${coupon.value}% off`;
+    case "flat":    return `${coupon.code} — ${sym}${coupon.value} off`;
+    case "fixed":   return `${coupon.code} — ${sym}${coupon.value}/hr flat`;
+    default:        return coupon.code;
+  }
+}
+
+function isHappyHour(coupon: BookingCoupon): boolean {
+  const now = new Date();
+  const day = now.getDay();
+  const mins = now.getHours() * 60 + now.getMinutes();
+
+  const validDays: number[] = coupon.happy_hour_days?.length ? coupon.happy_hour_days : [1, 2, 3, 4, 5];
+  if (!validDays.includes(day)) return false;
+
+  if (coupon.happy_hour_start && coupon.happy_hour_end) {
+    const [sh, sm] = coupon.happy_hour_start.split(":").map(Number);
+    const [eh, em] = coupon.happy_hour_end.split(":").map(Number);
+    return mins >= sh * 60 + sm && mins < eh * 60 + em;
+  }
+  return true;
+}
+
+// ── Component ──────────────────────────────────────────────────────────────
+
+export default function StartSessionDialog({ open, onClose, onConfirm, customers, coupons, baseRate, sym }: Props) {
   const [search, setSearch] = useState("");
   const [selected, setSelected] = useState<Customer | null>(null);
   const [couponCode, setCouponCode] = useState("NONE");
@@ -64,19 +79,24 @@ export default function StartSessionDialog({ open, onClose, onConfirm, customers
     return c.name.toLowerCase().includes(q) || (c.phone || "").includes(q);
   }).slice(0, 10);
 
-  const couponDef = COUPONS.find(c => c.code === couponCode) || COUPONS[0];
-  const finalRate = couponDef.getRate(baseRate);
+  const selectedCoupon = coupons.find(c => c.code === couponCode) || null;
+  const finalRate = selectedCoupon ? applyDiscount(selectedCoupon, baseRate) : baseRate;
   const discount = baseRate - finalRate;
 
   const handleCouponChange = (code: string) => {
-    const def = COUPONS.find(c => c.code === code);
-    if (def?.happyHourOnly && !isHappyHour()) {
-      toast.error("Happy Hour is only valid Mon–Fri 11 AM–4 PM");
+    if (code === "NONE") { setCouponCode("NONE"); return; }
+    const def = coupons.find(c => c.code === code);
+    if (!def) return;
+    // Happy-hour validation
+    if ((def.happy_hour_start || def.happy_hour_end) && !isHappyHour(def)) {
+      const timeRange = def.happy_hour_start && def.happy_hour_end
+        ? ` (${def.happy_hour_start}–${def.happy_hour_end})`
+        : "";
+      toast.error(`${code} is only valid during happy hours${timeRange}`);
       setCouponCode("NONE");
       return;
     }
-    if (def?.requiresStudentId) toast.warning("Student ID required — verify before confirming");
-    if (def?.requiresVerification) toast.warning("Verify against GameInsider enrollment list");
+    if (def.verify_note) toast.warning(def.verify_note);
     setCouponCode(code);
   };
 
@@ -134,7 +154,6 @@ export default function StartSessionDialog({ open, onClose, onConfirm, customers
               </ScrollArea>
             </div>
           ) : (
-            /* Confirmed customer card */
             <div className="rounded-lg border border-primary/30 bg-primary/5 p-3 flex items-center gap-3">
               <div className="h-10 w-10 rounded-full bg-primary/20 flex items-center justify-center shrink-0">
                 <Check className="h-5 w-5 text-primary" />
@@ -152,18 +171,27 @@ export default function StartSessionDialog({ open, onClose, onConfirm, customers
             </div>
           )}
 
-          {/* Section 2: Coupon (shown after customer selected) */}
+          {/* Section 2: Coupon */}
           {selected && (
             <div>
-              <p className="text-sm font-medium mb-1.5">Apply Coupon</p>
-              <Select value={couponCode} onValueChange={handleCouponChange}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  {COUPONS.map(c => (
-                    <SelectItem key={c.code} value={c.code}>{c.label}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <p className="text-sm font-medium mb-1.5 flex items-center gap-1.5">
+                <Tag className="h-3.5 w-3.5" /> Apply Coupon
+              </p>
+              {coupons.length === 0 ? (
+                <p className="text-xs text-muted-foreground border rounded-lg p-3 bg-muted/30">
+                  No coupons configured. Add coupons in Settings → Bookings.
+                </p>
+              ) : (
+                <Select value={couponCode} onValueChange={handleCouponChange}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="NONE">No Coupon — full price</SelectItem>
+                    {coupons.map(c => (
+                      <SelectItem key={c.code} value={c.code}>{couponLabel(c, sym)}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
             </div>
           )}
 

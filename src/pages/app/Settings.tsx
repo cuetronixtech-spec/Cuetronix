@@ -11,7 +11,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Separator } from "@/components/ui/separator";
+import { Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
+import type { BookingCoupon } from "@/integrations/supabase/types";
 
 type ConfigPatch = Record<string, unknown>;
 
@@ -22,6 +24,163 @@ function SaveButton({ onClick, saving }: { onClick: () => void; saving: boolean 
     </Button>
   );
 }
+
+// ── CouponsCard ────────────────────────────────────────────────────────────
+
+const blankCoupon = (): Omit<BookingCoupon, "uses"> => ({
+  code: "", type: "percent", value: 0, max_uses: 0,
+  happy_hour_start: "", happy_hour_end: "", verify_note: "",
+});
+
+function CouponsCard({ tenantId, initialCoupons, onSaved, sym }: {
+  tenantId: string;
+  initialCoupons: BookingCoupon[];
+  onSaved: () => void;
+  sym: string;
+}) {
+  const [coupons, setCoupons] = useState<BookingCoupon[]>(initialCoupons);
+  const [adding, setAdding] = useState(false);
+  const [form, setForm] = useState(blankCoupon());
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => { setCoupons(initialCoupons); }, [initialCoupons.length]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const saveCoupons = async (updated: BookingCoupon[]) => {
+    if (!tenantId) return;
+    setSaving(true);
+    const { error } = await supabase.from("tenant_config").update({ booking_coupons: updated }).eq("tenant_id", tenantId);
+    if (error) { toast.error(error.message); } else { toast.success("Coupons saved"); onSaved(); }
+    setSaving(false);
+  };
+
+  const handleAdd = async () => {
+    const code = form.code.trim().toUpperCase();
+    if (!code || form.value <= 0) return;
+    if (coupons.some(c => c.code === code)) { toast.error("Coupon code already exists"); return; }
+    const newCoupon: BookingCoupon = {
+      code,
+      type: form.type,
+      value: Number(form.value),
+      max_uses: Number(form.max_uses) || 0,
+      uses: 0,
+      ...(form.happy_hour_start ? { happy_hour_start: form.happy_hour_start } : {}),
+      ...(form.happy_hour_end   ? { happy_hour_end: form.happy_hour_end }     : {}),
+      ...(form.verify_note      ? { verify_note: form.verify_note }           : {}),
+    };
+    const updated = [...coupons, newCoupon];
+    await saveCoupons(updated);
+    setCoupons(updated);
+    setForm(blankCoupon());
+    setAdding(false);
+  };
+
+  const handleDelete = async (code: string) => {
+    const updated = coupons.filter(c => c.code !== code);
+    await saveCoupons(updated);
+    setCoupons(updated);
+  };
+
+  const typeLabel = (c: BookingCoupon) => {
+    switch (c.type) {
+      case "percent": return `${c.value}% off`;
+      case "flat":    return `${sym}${c.value} off`;
+      case "fixed":   return `${sym}${c.value}/hr fixed`;
+    }
+  };
+
+  return (
+    <Card>
+      <CardHeader>
+        <div className="flex items-center justify-between">
+          <CardTitle className="text-base">Session Coupons</CardTitle>
+          <Button size="sm" variant="outline" onClick={() => setAdding(a => !a)}>
+            <Plus className="h-3.5 w-3.5 mr-1" />{adding ? "Cancel" : "Add Coupon"}
+          </Button>
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        {/* Add form */}
+        {adding && (
+          <div className="rounded-lg border bg-muted/30 p-4 space-y-3">
+            <p className="text-sm font-medium">New Coupon</p>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label className="text-xs">Code *</Label>
+                <Input value={form.code} onChange={e => setForm(f => ({ ...f, code: e.target.value.toUpperCase() }))} placeholder="e.g. HH99" className="mt-1 uppercase" />
+              </div>
+              <div>
+                <Label className="text-xs">Type *</Label>
+                <Select value={form.type} onValueChange={v => setForm(f => ({ ...f, type: v as BookingCoupon["type"] }))}>
+                  <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="percent">Percent off (%)</SelectItem>
+                    <SelectItem value="flat">Flat amount off</SelectItem>
+                    <SelectItem value="fixed">Fixed rate override</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label className="text-xs">
+                  {form.type === "percent" ? "Discount %" : form.type === "flat" ? `Amount off (${sym})` : `Fixed rate (${sym}/hr)`} *
+                </Label>
+                <Input type="number" min="0" value={form.value || ""} onChange={e => setForm(f => ({ ...f, value: parseFloat(e.target.value) || 0 }))} className="mt-1" placeholder="0" />
+              </div>
+              <div>
+                <Label className="text-xs">Max Uses (0 = unlimited)</Label>
+                <Input type="number" min="0" value={form.max_uses || ""} onChange={e => setForm(f => ({ ...f, max_uses: parseInt(e.target.value) || 0 }))} className="mt-1" placeholder="0" />
+              </div>
+              <div>
+                <Label className="text-xs">Happy Hour Start (HH:MM, optional)</Label>
+                <Input type="time" value={form.happy_hour_start || ""} onChange={e => setForm(f => ({ ...f, happy_hour_start: e.target.value }))} className="mt-1" />
+              </div>
+              <div>
+                <Label className="text-xs">Happy Hour End (HH:MM, optional)</Label>
+                <Input type="time" value={form.happy_hour_end || ""} onChange={e => setForm(f => ({ ...f, happy_hour_end: e.target.value }))} className="mt-1" />
+              </div>
+              <div className="col-span-2">
+                <Label className="text-xs">Verification Note (shown as alert when applied)</Label>
+                <Input value={form.verify_note || ""} onChange={e => setForm(f => ({ ...f, verify_note: e.target.value }))} className="mt-1" placeholder="e.g. Student ID required" />
+              </div>
+            </div>
+            <Button size="sm" onClick={handleAdd} disabled={saving || !form.code.trim() || form.value <= 0}>
+              {saving ? "Saving…" : "Add Coupon"}
+            </Button>
+          </div>
+        )}
+
+        {/* Coupon list */}
+        {coupons.length === 0 ? (
+          <p className="text-sm text-muted-foreground text-center py-4">No coupons configured yet.</p>
+        ) : (
+          <div className="space-y-2">
+            {coupons.map(c => (
+              <div key={c.code} className="flex items-center justify-between p-3 rounded-lg border bg-muted/20">
+                <div className="space-y-0.5">
+                  <div className="flex items-center gap-2">
+                    <span className="font-mono font-bold text-sm">{c.code}</span>
+                    <span className="text-xs bg-primary/10 text-primary px-1.5 py-0.5 rounded">{typeLabel(c)}</span>
+                    {c.happy_hour_start && c.happy_hour_end && (
+                      <span className="text-xs text-muted-foreground">{c.happy_hour_start}–{c.happy_hour_end}</span>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                    {c.max_uses > 0 && <span>{c.uses}/{c.max_uses} uses</span>}
+                    {c.verify_note && <span className="text-orange-400">{c.verify_note}</span>}
+                  </div>
+                </div>
+                <Button size="sm" variant="ghost" className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive" onClick={() => handleDelete(c.code)}>
+                  <Trash2 className="h-3.5 w-3.5" />
+                </Button>
+              </div>
+            ))}
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+// ── Main Settings ──────────────────────────────────────────────────────────
 
 export default function Settings() {
   const { config, refetch } = useTenant();
@@ -306,7 +465,7 @@ export default function Settings() {
         </TabsContent>
 
         {/* BOOKINGS */}
-        <TabsContent value="Bookings" className="mt-4">
+        <TabsContent value="Bookings" className="mt-4 space-y-4">
           <Card>
             <CardHeader><CardTitle className="text-base">Online Booking Settings</CardTitle></CardHeader>
             <CardContent className="space-y-4">
@@ -323,6 +482,9 @@ export default function Settings() {
               <SaveButton onClick={() => save(booking as ConfigPatch)} saving={saving} />
             </CardContent>
           </Card>
+
+          {/* Coupons */}
+          <CouponsCard tenantId={tenantId || ""} initialCoupons={(config?.booking_coupons || []) as BookingCoupon[]} onSaved={refetch} sym={config?.currency_symbol || "₹"} />
         </TabsContent>
 
         {/* RECEIPTS */}
