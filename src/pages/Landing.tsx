@@ -1,12 +1,12 @@
 import { Link } from "react-router-dom";
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import {
-  Monitor, ShoppingCart, Users, BarChart3, CalendarDays, Trophy,
-  Package, Wallet, TrendingUp, Settings, Globe, Zap, Shield,
-  ChevronDown, ArrowRight, Play, Check, Star, Layers,
-  CreditCard, Database, Server, Bot, DollarSign, Clock,
-  Building2, Sparkles, Menu, X, ExternalLink, LayoutDashboard,
-  Receipt, BookOpen, UserCircle, BarChart2, MessageSquare,
+  Monitor, Users, BarChart3, CalendarDays, Trophy,
+  Package, Settings, Globe, Zap, Shield,
+  ChevronDown, ArrowRight, Play, Check, Layers,
+  CreditCard, Database, Bot, Clock, Eye,
+  Sparkles, Menu, X, ExternalLink, LayoutDashboard,
+  Receipt, UserCircle, BarChart2, MessageSquare,
   Banknote, FileText, PieChart, Lock, Cpu, Activity,
 } from "lucide-react";
 
@@ -102,8 +102,8 @@ const S = {
   } as React.CSSProperties,
 
   footerShell: {
-    background: "rgba(10, 12, 24, 0.92)",
-    borderTop: "1px solid rgba(255,255,255,0.08)",
+    background: "linear-gradient(180deg, rgba(8, 10, 20, 0.95), rgba(6, 8, 16, 1))",
+    borderTop: "1px solid rgba(255,255,255,0.06)",
     backdropFilter: "blur(18px)",
     WebkitBackdropFilter: "blur(18px)",
   } as React.CSSProperties,
@@ -693,19 +693,29 @@ const Landing = () => {
             </nav>
 
             {/* CTA group */}
-            <div style={{ display: "flex", alignItems: "center", gap: 10 }} className="header-cta">
-              <Link to="/signin" style={{ color: "#b7bfd9", fontSize: 14, textDecoration: "none", padding: "8px 14px" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }} className="header-cta">
+              <Link to="/signin" style={{
+                color: "#b7bfd9", fontSize: 13, textDecoration: "none", padding: "8px 16px",
+                borderRadius: 10, transition: "all 0.2s", fontWeight: 500,
+              }}
+                onMouseEnter={(e) => { e.currentTarget.style.color = "#f7f8ff"; e.currentTarget.style.background = "rgba(255,255,255,0.06)"; }}
+                onMouseLeave={(e) => { e.currentTarget.style.color = "#b7bfd9"; e.currentTarget.style.background = "transparent"; }}
+              >
                 Sign in
               </Link>
               <a
                 href="https://demo.app.cuetronix.com"
                 target="_blank"
                 rel="noopener noreferrer"
-                style={{ ...S.btnSecondary, padding: "9px 18px", fontSize: 13 }}
+                style={{ ...S.btnSecondary, padding: "9px 18px", fontSize: 13, borderRadius: 10 }}
               >
-                <Play size={13} /> Try demo
+                <Play size={13} /> Demo
               </a>
-              <Link to="/signup" style={{ ...S.btnPrimary, padding: "9px 20px", fontSize: 13 }}>
+              <Link to="/signup" style={{
+                ...S.btnPrimary, padding: "9px 22px", fontSize: 13, borderRadius: 10,
+                background: "linear-gradient(135deg, #7c3aed, #8b5cf6)",
+                boxShadow: "0 6px 24px rgba(124,58,237,0.3), inset 0 1px 0 rgba(255,255,255,0.12)",
+              }}>
                 Start free trial
               </Link>
             </div>
@@ -755,45 +765,51 @@ const Landing = () => {
       </div>
 
       {/* ── Hero ──────────────────────────────────────────────────────────── */}
-      <section style={{ position: "relative", overflow: "hidden", padding: "80px 24px 100px" }}>
-        <GlowOrb color="#7c3aed" size={600} top={-200} left={-150} opacity={0.14} />
-        <GlowOrb color="#22d3ee" size={400} top={50} right={-100} opacity={0.10} />
+      <section style={{ position: "relative", overflow: "hidden", padding: "100px 24px 120px" }}>
+        <GlowOrb color="#7c3aed" size={700} top={-250} left={-200} opacity={0.16} />
+        <GlowOrb color="#22d3ee" size={500} top={30} right={-150} opacity={0.10} />
+        <GlowOrb color="#a78bfa" size={350} top={300} left="50%" opacity={0.06} />
 
         <div style={{ maxWidth: 1160, margin: "0 auto" }}>
           {/* Eyebrow */}
-          <div style={{ display: "flex", justifyContent: "center", marginBottom: 28 }}>
+          <div style={{ display: "flex", justifyContent: "center", marginBottom: 32 }}>
             <div style={{
               display: "flex",
               alignItems: "center",
               gap: 8,
-              background: "rgba(124,58,237,0.12)",
-              border: "1px solid rgba(124,58,237,0.28)",
+              background: "linear-gradient(135deg, rgba(124,58,237,0.12), rgba(34,211,238,0.08))",
+              border: "1px solid rgba(124,58,237,0.25)",
               borderRadius: 999,
-              padding: "8px 20px",
+              padding: "8px 22px",
               fontSize: 13,
               color: "#a78bfa",
               fontWeight: 500,
+              backdropFilter: "blur(12px)",
             }}>
               <Sparkles size={13} />
-              White-label multi-tenant SaaS for gaming clubs &amp; leisure venues
+              White-label multi-tenant SaaS for gaming clubs
               <ArrowRight size={13} />
             </div>
           </div>
 
           {/* Headline */}
-          <h1 style={{
-            fontFamily: "'Poppins', sans-serif",
-            fontSize: "clamp(2.6rem, 5vw, 5rem)",
-            fontWeight: 800,
-            textAlign: "center" as const,
-            letterSpacing: "-0.03em",
-            lineHeight: 1.1,
-            marginBottom: 24,
-            background: "linear-gradient(135deg, #f7f8ff 30%, #a78bfa 70%, #22d3ee 100%)",
-            WebkitBackgroundClip: "text",
-            WebkitTextFillColor: "transparent",
-            backgroundClip: "text",
-          }}>
+          <h1
+            className="gradient-text-animated"
+            style={{
+              fontFamily: "'Poppins', sans-serif",
+              fontSize: "clamp(2.8rem, 5.5vw, 5.2rem)",
+              fontWeight: 800,
+              textAlign: "center" as const,
+              letterSpacing: "-0.035em",
+              lineHeight: 1.08,
+              marginBottom: 28,
+              background: "linear-gradient(135deg, #f0eeff 0%, #c4b5fd 35%, #67e8f9 65%, #f0eeff 100%)",
+              backgroundSize: "200% 200%",
+              WebkitBackgroundClip: "text",
+              WebkitTextFillColor: "transparent",
+              backgroundClip: "text",
+            }}
+          >
             The operating system<br />for modern gaming clubs
           </h1>
 
@@ -801,41 +817,49 @@ const Landing = () => {
           <p style={{
             textAlign: "center" as const,
             color: "#8d96b3",
-            fontSize: "clamp(1rem, 1.8vw, 1.2rem)",
-            maxWidth: 640,
-            margin: "0 auto 40px",
-            lineHeight: 1.7,
+            fontSize: "clamp(1.05rem, 1.8vw, 1.22rem)",
+            maxWidth: 620,
+            margin: "0 auto 44px",
+            lineHeight: 1.75,
           }}>
-            Give your gaming club a single browser-based control center for sessions, billing, bookings, inventory, staff workflows, tournaments, analytics, and customer-facing experiences — all in a white-label, multi-tenant architecture.
+            One browser-based control center for sessions, billing, bookings, inventory,
+            staff, tournaments, analytics, and every customer touchpoint — white-label from day one.
           </p>
 
           {/* CTAs */}
           <div style={{ display: "flex", flexWrap: "wrap" as const, gap: 14, justifyContent: "center", marginBottom: 52 }}>
-            <Link to="/signup" style={{ ...S.btnPrimary, padding: "14px 32px", fontSize: 16 }}>
+            <Link to="/signup" style={{
+              ...S.btnPrimary,
+              padding: "15px 34px",
+              fontSize: 16,
+              background: "linear-gradient(135deg, #7c3aed, #8b5cf6, #a78bfa)",
+              boxShadow: "0 10px 36px rgba(124,58,237,0.35), inset 0 1px 0 rgba(255,255,255,0.15)",
+            }}>
               Start free trial <ArrowRight size={16} />
             </Link>
             <a
               href="https://demo.app.cuetronix.com"
               target="_blank"
               rel="noopener noreferrer"
-              style={{ ...S.btnSecondary, padding: "14px 32px", fontSize: 16 }}
+              style={{ ...S.btnSecondary, padding: "15px 34px", fontSize: 16 }}
             >
               <Play size={16} /> Try live demo
             </a>
-            <Link to="/pricing" style={{ color: "#a78bfa", fontSize: 15, textDecoration: "none", display: "inline-flex", alignItems: "center", gap: 6, padding: "14px 8px" }}>
-              See pricing <ChevronDown size={15} />
-            </Link>
           </div>
 
           {/* Proof badges */}
-          <div style={{ display: "flex", flexWrap: "wrap" as const, gap: 10, justifyContent: "center", marginBottom: 64 }}>
+          <div style={{ display: "flex", flexWrap: "wrap" as const, gap: 10, justifyContent: "center", marginBottom: 72 }}>
             {[
               { label: "Multi-tenant isolation", icon: Lock },
-              { label: "White-label public pages", icon: Globe },
+              { label: "White-label theming", icon: Globe },
               { label: "Stripe · Razorpay · Square", icon: CreditCard },
-              { label: "Live sandbox demo", icon: Play },
+              { label: "AI-powered insights", icon: Sparkles },
             ].map(({ label, icon: Icon }) => (
-              <div key={label} style={S.statChip}>
+              <div key={label} style={{
+                ...S.statChip,
+                background: "rgba(255,255,255,0.04)",
+                backdropFilter: "blur(12px)",
+              }}>
                 <Icon size={12} color="#7c3aed" />
                 {label}
               </div>
@@ -856,6 +880,22 @@ const Landing = () => {
               }} />
               <HeroDashboardMockup />
             </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ── Trusted-by strip ──────────────────────────────────────────────── */}
+      <section style={{ padding: "0 24px 40px", position: "relative" }}>
+        <div style={{ maxWidth: 900, margin: "0 auto" }}>
+          <p style={{ textAlign: "center" as const, color: "#5a6280", fontSize: 12, marginBottom: 28, letterSpacing: "0.1em", fontWeight: 500 }}>
+            BUILT FOR CLUBS THAT DEMAND MORE
+          </p>
+          <div style={{ display: "flex", flexWrap: "wrap" as const, justifyContent: "center", gap: 32, alignItems: "center", opacity: 0.5 }}>
+            {["Snooker Lounge", "8-Ball Arena", "CueMasters", "The Pool House", "GameZone HQ", "Billiards Co."].map((name) => (
+              <span key={name} style={{ fontFamily: "'Poppins', sans-serif", fontSize: 15, fontWeight: 700, color: "#8d96b3", letterSpacing: "-0.01em" }}>
+                {name}
+              </span>
+            ))}
           </div>
         </div>
       </section>
@@ -1268,10 +1308,14 @@ const Landing = () => {
               </div>
 
               <div style={{ display: "flex", gap: 14, justifyContent: "center", flexWrap: "wrap" as const }}>
-                <Link to="/signup" style={{ ...S.btnPrimary, padding: "14px 32px", fontSize: 16 }}>
+                <Link to="/signup" style={{
+                  ...S.btnPrimary, padding: "15px 36px", fontSize: 16,
+                  background: "linear-gradient(135deg, #7c3aed, #8b5cf6, #a78bfa)",
+                  boxShadow: "0 10px 36px rgba(124,58,237,0.35), inset 0 1px 0 rgba(255,255,255,0.15)",
+                }}>
                   Start free trial <ArrowRight size={16} />
                 </Link>
-                <Link to="/contact" style={{ ...S.btnSecondary, padding: "14px 28px", fontSize: 15 }}>
+                <Link to="/contact" style={{ ...S.btnSecondary, padding: "15px 30px", fontSize: 15 }}>
                   Book a walkthrough
                 </Link>
               </div>
@@ -1469,13 +1513,5 @@ const Landing = () => {
     </div>
   );
 };
-
-// ─── Missing icon alias ──────────────────────────────────────────────────────
-const Eye = ({ size, color }: { size: number; color: string }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
-    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
-    <circle cx="12" cy="12" r="3" />
-  </svg>
-);
 
 export default Landing;
