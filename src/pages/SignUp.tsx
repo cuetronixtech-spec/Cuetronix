@@ -5,6 +5,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import { AuthShell } from "@/components/auth/AuthShell";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -23,7 +24,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
-import { CheckCircle2, XCircle, Loader2, Mail } from "lucide-react";
+import { CheckCircle2, XCircle, Loader2, Mail, Eye, EyeOff } from "lucide-react";
 
 // ─── Schema ───────────────────────────────────────────────────────────────────
 
@@ -101,6 +102,7 @@ const SignUp = () => {
   const [slugStatus, setSlugStatus] = useState<"idle" | "checking" | "available" | "taken">("idle");
   const [emailSent, setEmailSent] = useState<string | null>(null);
   const [googleLoading, setGoogleLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   const {
     register,
@@ -220,13 +222,8 @@ const SignUp = () => {
 
   if (emailSent) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background p-4">
-        <div className="w-full max-w-md">
-          <div className="text-center mb-8">
-            <span className="text-3xl font-bold text-primary tracking-tight">Cuetronix</span>
-            <p className="text-sm text-muted-foreground mt-1">Club Management Platform</p>
-          </div>
-          <Card className="border-border/50 shadow-2xl shadow-primary/5 text-center">
+      <AuthShell>
+        <Card className="border border-white/10 bg-card/80 shadow-2xl shadow-black/40 backdrop-blur-xl text-center">
             <CardContent className="pt-10 pb-8 px-8 space-y-5">
               <div className="flex justify-center">
                 <div className="h-16 w-16 rounded-full bg-primary/10 flex items-center justify-center">
@@ -265,24 +262,17 @@ const SignUp = () => {
               </p>
             </CardContent>
           </Card>
-        </div>
-      </div>
+      </AuthShell>
     );
   }
 
   // ── Main form ─────────────────────────────────────────────────────────────
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background p-4">
-      <div className="w-full max-w-md space-y-6">
-        <div className="text-center">
-          <span className="text-3xl font-bold text-primary tracking-tight">Cuetronix</span>
-          <p className="text-sm text-muted-foreground mt-1">Club Management Platform</p>
-        </div>
-
-        <Card className="border-border/50 shadow-2xl shadow-primary/5">
-          <CardHeader className="text-center pb-2">
-            <CardTitle className="text-xl">Create your club</CardTitle>
+    <AuthShell>
+      <Card className="border border-white/10 bg-card/80 shadow-2xl shadow-black/40 backdrop-blur-xl">
+          <CardHeader className="space-y-1 pb-2 text-center">
+            <CardTitle className="text-xl font-semibold tracking-tight">Create your club</CardTitle>
             <CardDescription>14-day free trial — no credit card required</CardDescription>
           </CardHeader>
 
@@ -291,7 +281,7 @@ const SignUp = () => {
             <Button
               type="button"
               variant="outline"
-              className="w-full"
+              className="w-full border-white/10 bg-white/[0.04] hover:bg-white/[0.08]"
               onClick={handleGoogleSignUp}
               disabled={googleLoading}
             >
@@ -300,7 +290,7 @@ const SignUp = () => {
             </Button>
 
             <div className="relative">
-              <Separator />
+              <Separator className="bg-white/10" />
               <span className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 bg-card px-2 text-xs text-muted-foreground">
                 or fill in details below
               </span>
@@ -361,11 +351,28 @@ const SignUp = () => {
               {/* Password */}
               <div className="space-y-1.5">
                 <Label htmlFor="password">Password</Label>
-                <Input id="password" type="password" placeholder="Min 8 chars, 1 uppercase, 1 number" autoComplete="new-password" {...register("password")} />
+                <div className="relative">
+                  <Input
+                    id="password"
+                    type={showPassword ? "text" : "password"}
+                    placeholder="Min 8 chars, 1 uppercase, 1 number"
+                    autoComplete="new-password"
+                    className="border-white/10 bg-background/50 pr-10"
+                    {...register("password")}
+                  />
+                  <button
+                    type="button"
+                    aria-label={showPassword ? "Hide password" : "Show password"}
+                    className="absolute right-0 top-0 flex h-10 w-10 items-center justify-center rounded-md text-muted-foreground transition-colors hover:text-foreground"
+                    onClick={() => setShowPassword((v) => !v)}
+                  >
+                    {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
+                </div>
                 {errors.password && <p className="text-xs text-destructive">{errors.password.message}</p>}
               </div>
 
-              <Button className="w-full" type="submit" disabled={isSubmitting || slugStatus === "taken"}>
+              <Button className="w-full shadow-lg shadow-primary/25" type="submit" disabled={isSubmitting || slugStatus === "taken"}>
                 {isSubmitting ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Creating your club…</> : "Start Free Trial"}
               </Button>
 
@@ -382,8 +389,7 @@ const SignUp = () => {
             </p>
           </CardContent>
         </Card>
-      </div>
-    </div>
+    </AuthShell>
   );
 };
 

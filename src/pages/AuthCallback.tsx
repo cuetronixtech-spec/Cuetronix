@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -17,11 +17,23 @@ import { PENDING_TENANT_KEY } from "./SignUp";
  */
 const AuthCallback = () => {
   const navigate = useNavigate();
+  const passwordRecoveryRef = useRef(false);
 
   useEffect(() => {
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((event) => {
+      if (event === "PASSWORD_RECOVERY") {
+        passwordRecoveryRef.current = true;
+        navigate("/reset-password", { replace: true });
+      }
+    });
+
     const handleCallback = async () => {
       // Supabase needs a moment to finish exchanging the code/hash for a session
       await new Promise((r) => setTimeout(r, 400));
+
+      if (passwordRecoveryRef.current) return;
 
       const {
         data: { session },
@@ -84,6 +96,10 @@ const AuthCallback = () => {
     };
 
     handleCallback();
+
+    return () => {
+      subscription.unsubscribe();
+    };
   }, [navigate]);
 
   return (

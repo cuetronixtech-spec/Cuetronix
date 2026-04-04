@@ -4,7 +4,9 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { toast } from "sonner";
+import { Eye, EyeOff } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { AuthShell } from "@/components/auth/AuthShell";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -54,6 +56,7 @@ const GoogleIcon = () => (
 const SignIn = () => {
   const navigate = useNavigate();
   const [googleLoading, setGoogleLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   const {
     register,
@@ -94,95 +97,97 @@ const SignIn = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background p-4">
-      <div className="w-full max-w-md space-y-6">
-        {/* Logo */}
-        <div className="text-center">
-          <span className="text-3xl font-bold text-primary tracking-tight">
-            Cuetronix
-          </span>
-          <p className="text-sm text-muted-foreground mt-1">Club Management Platform</p>
-        </div>
+    <AuthShell>
+      <Card className="border border-white/10 bg-card/80 shadow-2xl shadow-black/40 backdrop-blur-xl">
+        <CardHeader className="space-y-1 pb-2 text-center">
+          <CardTitle className="text-xl font-semibold tracking-tight">Welcome back</CardTitle>
+          <CardDescription>Sign in to your club workspace</CardDescription>
+        </CardHeader>
 
-        <Card className="border-border/50 shadow-2xl shadow-primary/5">
-          <CardHeader className="text-center pb-2">
-            <CardTitle className="text-xl">Welcome back</CardTitle>
-            <CardDescription>Sign in to your club workspace</CardDescription>
-          </CardHeader>
+        <CardContent className="space-y-4 pt-2">
+          {/* Google */}
+          <Button
+            variant="outline"
+            className="w-full border-white/10 bg-white/[0.04] hover:bg-white/[0.08]"
+            onClick={handleGoogleSignIn}
+            disabled={googleLoading}
+            type="button"
+          >
+            <GoogleIcon />
+            {googleLoading ? "Redirecting…" : "Continue with Google"}
+          </Button>
 
-          <CardContent className="space-y-4 pt-2">
-            {/* Google */}
-            <Button
-              variant="outline"
-              className="w-full"
-              onClick={handleGoogleSignIn}
-              disabled={googleLoading}
-              type="button"
-            >
-              <GoogleIcon />
-              {googleLoading ? "Redirecting…" : "Continue with Google"}
-            </Button>
+          <div className="relative">
+            <Separator className="bg-white/10" />
+            <span className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 bg-card px-2 text-xs text-muted-foreground">
+              or
+            </span>
+          </div>
 
-            <div className="relative">
-              <Separator />
-              <span className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 bg-card px-2 text-xs text-muted-foreground">
-                or
-              </span>
+          {/* Email + Password */}
+          <form onSubmit={handleSubmit(onSubmit)} className="space-y-4" noValidate>
+            <div className="space-y-1.5">
+              <Label htmlFor="email">Email</Label>
+              <Input
+                id="email"
+                type="email"
+                placeholder="admin@myclubname.com"
+                autoComplete="email"
+                className="border-white/10 bg-background/50"
+                {...register("email")}
+              />
+              {errors.email && (
+                <p className="text-xs text-destructive">{errors.email.message}</p>
+              )}
             </div>
 
-            {/* Email + Password */}
-            <form onSubmit={handleSubmit(onSubmit)} className="space-y-4" noValidate>
-              <div className="space-y-1.5">
-                <Label htmlFor="email">Email</Label>
-                <Input
-                  id="email"
-                  type="email"
-                  placeholder="admin@myclubname.com"
-                  autoComplete="email"
-                  {...register("email")}
-                />
-                {errors.email && (
-                  <p className="text-xs text-destructive">{errors.email.message}</p>
-                )}
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between gap-2">
+                <Label htmlFor="password">Password</Label>
+                <Link
+                  to="/forgot-password"
+                  className="text-xs font-medium text-primary hover:underline"
+                >
+                  Forgot password?
+                </Link>
               </div>
-
-              <div className="space-y-1.5">
-                <div className="flex items-center justify-between">
-                  <Label htmlFor="password">Password</Label>
-                  <Link
-                    to="/forgot-password"
-                    className="text-xs text-primary hover:underline"
-                  >
-                    Forgot password?
-                  </Link>
-                </div>
+              <div className="relative">
                 <Input
                   id="password"
-                  type="password"
+                  type={showPassword ? "text" : "password"}
                   placeholder="••••••••"
                   autoComplete="current-password"
+                  className="border-white/10 bg-background/50 pr-10"
                   {...register("password")}
                 />
-                {errors.password && (
-                  <p className="text-xs text-destructive">{errors.password.message}</p>
-                )}
+                <button
+                  type="button"
+                  aria-label={showPassword ? "Hide password" : "Show password"}
+                  className="absolute right-0 top-0 flex h-10 w-10 items-center justify-center rounded-md text-muted-foreground transition-colors hover:text-foreground"
+                  onClick={() => setShowPassword((v) => !v)}
+                >
+                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </button>
               </div>
+              {errors.password && (
+                <p className="text-xs text-destructive">{errors.password.message}</p>
+              )}
+            </div>
 
-              <Button className="w-full" type="submit" disabled={isSubmitting}>
-                {isSubmitting ? "Signing in…" : "Sign In"}
-              </Button>
-            </form>
+            <Button className="w-full shadow-lg shadow-primary/25" type="submit" disabled={isSubmitting}>
+              {isSubmitting ? "Signing in…" : "Sign in"}
+            </Button>
+          </form>
 
-            <p className="text-center text-sm text-muted-foreground">
-              Don't have an account?{" "}
-              <Link to="/signup" className="text-primary hover:underline font-medium">
-                Start free trial
-              </Link>
-            </p>
-          </CardContent>
-        </Card>
-      </div>
-    </div>
+          <p className="text-center text-sm text-muted-foreground">
+            Don&apos;t have an account?{" "}
+            <Link to="/signup" className="font-medium text-primary hover:underline">
+              Start free trial
+            </Link>
+          </p>
+        </CardContent>
+      </Card>
+    </AuthShell>
   );
 };
 

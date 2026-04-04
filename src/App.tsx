@@ -30,6 +30,7 @@ import Pricing from "@/pages/Pricing";
 import SignUp from "@/pages/SignUp";
 import SignIn from "@/pages/SignIn";
 import ForgotPassword from "@/pages/ForgotPassword";
+import ResetPassword from "@/pages/ResetPassword";
 import AuthCallback from "@/pages/AuthCallback";
 import Onboarding from "@/pages/Onboarding";
 import Subscription from "@/pages/Subscription";
@@ -111,6 +112,7 @@ const App = () => (
               <Route path="/signup" element={<SignUp />} />
               <Route path="/signin" element={<SignIn />} />
               <Route path="/forgot-password" element={<ForgotPassword />} />
+              <Route path="/reset-password" element={<ResetPassword />} />
               <Route path="/auth/callback" element={<AuthCallback />} />
 
               {/* ─── Onboarding (auth required, no subscription gate) ─ */}

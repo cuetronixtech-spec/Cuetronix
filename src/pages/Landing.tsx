@@ -14,7 +14,12 @@ import {
 
 const S = {
   bgBase: {
-    background: "linear-gradient(170deg, #070b16 0%, #0b1020 40%, #0f0f1a 100%)",
+    background: `
+      radial-gradient(ellipse 120% 80% at 50% -35%, rgba(124, 58, 237, 0.2), transparent 55%),
+      radial-gradient(ellipse 70% 50% at 110% 10%, rgba(34, 211, 238, 0.1), transparent 50%),
+      radial-gradient(ellipse 55% 45% at -15% 55%, rgba(124, 58, 237, 0.08), transparent 45%),
+      linear-gradient(170deg, #060912 0%, #0b1020 38%, #0f0f1a 100%)
+    `,
     minHeight: "100vh",
   } as React.CSSProperties,
 
@@ -22,11 +27,11 @@ const S = {
     position: "sticky" as const,
     top: 16,
     zIndex: 50,
-    backdropFilter: "blur(22px)",
-    WebkitBackdropFilter: "blur(22px)",
-    background: "rgba(10, 14, 28, 0.46)",
-    border: "1px solid rgba(255,255,255,0.10)",
-    boxShadow: "0 10px 40px rgba(0,0,0,0.28)",
+    backdropFilter: "blur(24px) saturate(140%)",
+    WebkitBackdropFilter: "blur(24px) saturate(140%)",
+    background: "linear-gradient(180deg, rgba(14, 18, 32, 0.72), rgba(10, 14, 28, 0.52))",
+    border: "1px solid rgba(255,255,255,0.12)",
+    boxShadow: "0 12px 48px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.06)",
     borderRadius: 22,
     margin: "0 16px",
   } as React.CSSProperties,
