@@ -17,7 +17,7 @@ import {
 } from "recharts";
 import {
   TrendingUp, TrendingDown, DollarSign, Receipt, Clock, CalendarDays,
-  Download, Search, Minus, BarChart3, Users, Sparkles,
+  Download, Search, ChevronDown, Minus, BarChart3, Users, Sparkles,
 } from "lucide-react";
 import type { DateRange as DRP } from "react-day-picker";
 import {
