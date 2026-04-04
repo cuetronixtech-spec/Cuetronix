@@ -195,6 +195,8 @@ export default function Settings() {
     timezone: "Asia/Kolkata", date_format: "DD/MM/YYYY", time_format: "HH:mm",
   });
 
+  const [monthlyRevenueTarget, setMonthlyRevenueTarget] = useState("");
+
   const [branding, setBranding] = useState({
     primary_color: "#4f46e5", secondary_color: "#7c3aed", accent_color: "#06b6d4",
     background_color: "#09090b", surface_color: "#18181b",
@@ -244,6 +246,13 @@ export default function Settings() {
       currency_symbol: config.currency_symbol || "₹", timezone: config.timezone || "Asia/Kolkata",
       date_format: config.date_format || "DD/MM/YYYY", time_format: config.time_format || "HH:mm",
     });
+    const ext = config.extended_config;
+    let tStr = "";
+    if (ext && typeof ext === "object" && "monthly_revenue_target" in ext) {
+      const v = (ext as Record<string, unknown>).monthly_revenue_target;
+      if (typeof v === "number" && v > 0) tStr = String(v);
+    }
+    setMonthlyRevenueTarget(tStr);
     setBranding({
       primary_color: config.primary_color || "#4f46e5",
       secondary_color: config.secondary_color || "#7c3aed",
@@ -365,6 +374,18 @@ export default function Settings() {
               <div className="grid md:grid-cols-2 gap-4">
                 <Field label="Currency Code"><Input value={general.currency_code} onChange={e => setGeneral(f => ({ ...f, currency_code: e.target.value }))} placeholder="INR" /></Field>
                 <Field label="Currency Symbol"><Input value={general.currency_symbol} onChange={e => setGeneral(f => ({ ...f, currency_symbol: e.target.value }))} placeholder="₹" /></Field>
+                <Field label="Monthly revenue target (optional)">
+                  <Input
+                    type="number"
+                    min="0"
+                    step="1"
+                    value={monthlyRevenueTarget}
+                    onChange={e => setMonthlyRevenueTarget(e.target.value)}
+                    placeholder="e.g. 50000 — for Reports summary"
+                    className="mt-1"
+                  />
+                  <p className="text-xs text-muted-foreground mt-1">Drives the gaming/canteen progress card in Reports. Leave blank to hide the progress bar.</p>
+                </Field>
                 <Field label="Timezone">
                   <Select value={general.timezone} onValueChange={v => setGeneral(f => ({ ...f, timezone: v }))}>
                     <SelectTrigger><SelectValue /></SelectTrigger>
@@ -386,7 +407,35 @@ export default function Settings() {
                   </Select>
                 </Field>
               </div>
-              <SaveButton onClick={() => save(general as ConfigPatch)} saving={saving} />
+              <SaveButton
+                onClick={async () => {
+                  if (!tenantId) return;
+                  setSaving(true);
+                  const prevExt =
+                    config?.extended_config && typeof config.extended_config === "object"
+                      ? { ...(config.extended_config as Record<string, unknown>) }
+                      : {};
+                  const raw = monthlyRevenueTarget.trim();
+                  if (raw === "") delete prevExt.monthly_revenue_target;
+                  else {
+                    const n = parseFloat(raw);
+                    if (!Number.isFinite(n) || n <= 0) delete prevExt.monthly_revenue_target;
+                    else prevExt.monthly_revenue_target = n;
+                  }
+
+                  const { error } = await supabase
+                    .from("tenant_config")
+                    .update({ ...(general as ConfigPatch), extended_config: prevExt })
+                    .eq("tenant_id", tenantId);
+                  if (error) toast.error(error.message);
+                  else {
+                    toast.success("Settings saved");
+                    await refetch();
+                  }
+                  setSaving(false);
+                }}
+                saving={saving}
+              />
             </CardContent>
           </Card>
         </TabsContent>

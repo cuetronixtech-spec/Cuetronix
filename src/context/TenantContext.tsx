@@ -120,6 +120,9 @@ export interface TenantConfig {
   customer_portal_show_loyalty: boolean;
   customer_portal_show_booking: boolean;
   customer_portal_show_offers: boolean;
+
+  /** JSON bag for app-specific keys (e.g. monthly_revenue_target). */
+  extended_config?: Record<string, unknown> | null;
 }
 
 interface TenantContextType {

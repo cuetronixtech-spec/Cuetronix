@@ -932,13 +932,51 @@ function RecentTransactions({ bills, activeSessions, onRefresh, tenantId, sym, p
 
 // ─── Analytics Charts ──────────────────────────────────────────────────────────
 
+function pearsonCorrelation(xs: number[], ys: number[]): number | null {
+  const n = xs.length;
+  if (n < 2) return null;
+  const mx = xs.reduce((a, b) => a + b, 0) / n;
+  const my = ys.reduce((a, b) => a + b, 0) / n;
+  let num = 0;
+  let dx = 0;
+  let dy = 0;
+  for (let i = 0; i < n; i++) {
+    const vx = xs[i] - mx;
+    const vy = ys[i] - my;
+    num += vx * vy;
+    dx += vx * vx;
+    dy += vy * vy;
+  }
+  const den = Math.sqrt(dx * dy);
+  if (den < 1e-9) return null;
+  return num / den;
+}
+
+function correlationLabel(r: number): string {
+  const a = Math.abs(r);
+  if (a >= 0.7) return r >= 0 ? "Strong positive correlation" : "Strong negative correlation";
+  if (a >= 0.4) return r >= 0 ? "Moderate positive correlation" : "Moderate negative correlation";
+  if (a >= 0.2) return r >= 0 ? "Weak positive correlation" : "Weak negative correlation";
+  return "Little linear correlation";
+}
+
 function CustomerSpendingCorrelation({ customers }: { customers: CustomerBasic[] }) {
   const { config } = useTenant();
   const sym = config?.currency_symbol || "₹";
   const data = customers.map(c => ({ x: c.visit_count, y: Number(c.total_spend), name: c.name }));
+  const xs = data.map(d => d.x);
+  const ys = data.map(d => d.y);
+  const R = pearsonCorrelation(xs, ys);
   return (
     <Card className="border-border/50">
-      <CardHeader><CardTitle className="text-sm">Visit Frequency vs. Spend</CardTitle></CardHeader>
+      <CardHeader className="pb-2">
+        <CardTitle className="text-sm">Visit Frequency vs. Spend</CardTitle>
+        {R != null && (
+          <p className="text-xs text-muted-foreground mt-1">
+            R = {R.toFixed(2)} — {correlationLabel(R)}
+          </p>
+        )}
+      </CardHeader>
       <CardContent>
         <ResponsiveContainer width="100%" height={200}>
           <ScatterChart margin={{ top: 5, right: 10, bottom: 20, left: 0 }}>

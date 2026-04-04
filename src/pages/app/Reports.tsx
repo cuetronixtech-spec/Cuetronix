@@ -1,4 +1,5 @@
 import { useState, useMemo } from "react";
+import { differenceInCalendarDays, format } from "date-fns";
 import { useTenant } from "@/context/TenantContext";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -16,14 +17,23 @@ import {
 } from "recharts";
 import {
   TrendingUp, TrendingDown, DollarSign, Receipt, Clock, CalendarDays,
-  Download, Search, Filter, ChevronDown, Minus, BarChart3, Users,
+  Download, Search, Minus, BarChart3, Users, Sparkles,
 } from "lucide-react";
-import { format } from "date-fns";
 import type { DateRange as DRP } from "react-day-picker";
 import {
   useReports, presetToRange, DATE_PRESETS,
-  type DatePreset, type DateRange, type Bill, type Session, type Booking,
+  type DatePreset, type DateRange, type Booking,
 } from "@/hooks/useReports";
+import { buildDailyFromForecastBills, computeBusinessInsights } from "@/lib/reports/predictionEngine";
+import { BusinessInsightsWidget, SevenDayForecastChart } from "@/components/reports/BusinessInsightsWidget";
+import {
+  ReportsHourlyRevenue, GamingRevenueTargetCard, TopCustomersReport,
+  CanteenProfitWidget, SummaryPaymentBar, BusinessSummaryCompact,
+} from "@/components/reports/ReportsSummaryPanels";
+import { ReportsKpiStrip } from "@/components/reports/ReportsKpiStrip";
+import { ReportsBillsTab } from "@/components/reports/ReportsBillsTab";
+import { ReportsCustomersTab } from "@/components/reports/ReportsCustomersTab";
+import { ReportsSessionsTab } from "@/components/reports/ReportsSessionsTab";
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -182,262 +192,6 @@ function DateRangeSelector({
   );
 }
 
-// ─── Bills Tab ────────────────────────────────────────────────────────────────
-
-type BillSort = "date" | "total" | "subtotal" | "discount" | "customer";
-
-function BillsTab({ bills, loading, sym, onExport }: {
-  bills: Bill[]; loading: boolean; sym: string; onExport: () => void;
-}) {
-  const [search, setSearch] = useState("");
-  const [payFilter, setPayFilter] = useState("all");
-  const [sort, setSort] = useState<BillSort>("date");
-  const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
-  const [expanded, setExpanded] = useState<string | null>(null);
-
-  const payMethods = useMemo(() => {
-    const s = new Set(bills.map(b => b.payment_method));
-    return Array.from(s);
-  }, [bills]);
-
-  const filtered = useMemo(() => {
-    const q = search.toLowerCase();
-    return bills
-      .filter(b => {
-        const matchSearch = !q ||
-          (b.bill_number ?? "").toLowerCase().includes(q) ||
-          (b.customers?.name ?? "").toLowerCase().includes(q) ||
-          (b.customers?.phone ?? "").includes(q);
-        const matchPay = payFilter === "all" || b.payment_method === payFilter;
-        return matchSearch && matchPay;
-      })
-      .sort((a, b) => {
-        let va: string | number, vb: string | number;
-        if (sort === "date")     { va = a.created_at; vb = b.created_at; }
-        else if (sort === "total")    { va = Number(a.total_amount);    vb = Number(b.total_amount); }
-        else if (sort === "subtotal") { va = Number(a.subtotal);        vb = Number(b.subtotal); }
-        else if (sort === "discount") { va = Number(a.discount_amount); vb = Number(b.discount_amount); }
-        else { va = a.customers?.name ?? ""; vb = b.customers?.name ?? ""; }
-        if (va < vb) return sortDir === "asc" ? -1 : 1;
-        if (va > vb) return sortDir === "asc" ? 1 : -1;
-        return 0;
-      });
-  }, [bills, search, payFilter, sort, sortDir]);
-
-  const toggleSort = (s: BillSort) => {
-    if (sort === s) setSortDir(d => d === "asc" ? "desc" : "asc");
-    else { setSort(s); setSortDir(s === "date" ? "desc" : "desc"); }
-  };
-
-  const SortIndicator = ({ s }: { s: BillSort }) =>
-    sort === s ? (
-      <span className="ml-0.5 text-primary">{sortDir === "asc" ? "↑" : "↓"}</span>
-    ) : null;
-
-  if (loading) return <div className="space-y-2">{[...Array(6)].map((_, i) => <Skeleton key={i} className="h-10" />)}</div>;
-
-  return (
-    <div className="space-y-3">
-      {/* Filters row */}
-      <div className="flex flex-wrap gap-2 items-center">
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
-          <Input placeholder="Search bill, customer, phone…" value={search} onChange={e => setSearch(e.target.value)} className="pl-8 h-8 text-sm w-56" />
-        </div>
-        <Select value={payFilter} onValueChange={setPayFilter}>
-          <SelectTrigger className="w-36 h-8 text-sm"><SelectValue placeholder="Payment method" /></SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All methods</SelectItem>
-            {payMethods.map(m => <SelectItem key={m} value={m} className="capitalize">{m.replace(/_/g, " ")}</SelectItem>)}
-          </SelectContent>
-        </Select>
-        <span className="text-xs text-muted-foreground ml-auto">{filtered.length} bill{filtered.length !== 1 ? "s" : ""}</span>
-        <Button variant="outline" size="sm" className="h-8 gap-1.5" onClick={onExport}>
-          <Download className="h-3.5 w-3.5" /> Export CSV
-        </Button>
-      </div>
-
-      {filtered.length === 0 ? (
-        <div className="text-center py-12 text-muted-foreground">No bills found for this period</div>
-      ) : (
-        <div className="rounded-md border overflow-hidden">
-          <Table>
-            <TableHeader>
-              <TableRow className="bg-muted/30">
-                <TableHead className="text-xs cursor-pointer select-none" onClick={() => toggleSort("date")}>Date/Time<SortIndicator s="date" /></TableHead>
-                <TableHead className="text-xs cursor-pointer select-none" onClick={() => toggleSort("customer")}>Customer<SortIndicator s="customer" /></TableHead>
-                <TableHead className="text-xs">Payment</TableHead>
-                <TableHead className="text-xs cursor-pointer select-none text-right" onClick={() => toggleSort("subtotal")}>Subtotal<SortIndicator s="subtotal" /></TableHead>
-                <TableHead className="text-xs cursor-pointer select-none text-right" onClick={() => toggleSort("discount")}>Discount<SortIndicator s="discount" /></TableHead>
-                <TableHead className="text-xs cursor-pointer select-none text-right" onClick={() => toggleSort("total")}>Total<SortIndicator s="total" /></TableHead>
-                <TableHead className="text-xs">Status</TableHead>
-                <TableHead className="text-xs w-8" />
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filtered.map(bill => (
-                <>
-                  <TableRow
-                    key={bill.id}
-                    className="cursor-pointer hover:bg-muted/20"
-                    onClick={() => setExpanded(expanded === bill.id ? null : bill.id)}
-                  >
-                    <TableCell className="text-sm">
-                      <div className="font-mono text-xs text-muted-foreground">{bill.bill_number ?? bill.id.slice(0, 8)}</div>
-                      <div className="text-xs text-muted-foreground">{new Date(bill.created_at).toLocaleString("en-IN", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}</div>
-                    </TableCell>
-                    <TableCell className="text-sm">
-                      <div className="font-medium">{bill.customers?.name ?? "—"}</div>
-                      {bill.customers?.phone && <div className="text-xs text-muted-foreground">{bill.customers.phone}</div>}
-                    </TableCell>
-                    <TableCell><PayBadge method={bill.payment_method} /></TableCell>
-                    <TableCell className="text-right text-sm">{sym}{Number(bill.subtotal).toLocaleString("en-IN")}</TableCell>
-                    <TableCell className="text-right text-sm text-orange-400">
-                      {Number(bill.discount_amount) > 0 ? `−${sym}${Number(bill.discount_amount).toLocaleString("en-IN")}` : "—"}
-                    </TableCell>
-                    <TableCell className="text-right font-semibold">{sym}{Number(bill.total_amount).toLocaleString("en-IN")}</TableCell>
-                    <TableCell>
-                      <Badge variant="outline" className={`text-xs ${bill.status === "voided" ? "text-red-400 border-red-400/30" : bill.status === "complimentary" ? "text-pink-400 border-pink-400/30" : "text-emerald-400 border-emerald-400/30"}`}>
-                        {bill.status}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      <ChevronDown className={`h-3.5 w-3.5 text-muted-foreground transition-transform ${expanded === bill.id ? "rotate-180" : ""}`} />
-                    </TableCell>
-                  </TableRow>
-
-                  {/* Expanded line items */}
-                  {expanded === bill.id && (
-                    <TableRow key={`${bill.id}-items`} className="bg-muted/10">
-                      <TableCell colSpan={8} className="p-0">
-                        <div className="px-4 py-3 border-t border-border/30">
-                          {bill.bill_items && bill.bill_items.length > 0 ? (
-                            <table className="w-full text-xs">
-                              <thead>
-                                <tr className="text-muted-foreground border-b border-border/30">
-                                  <th className="text-left py-1 font-medium">Item</th>
-                                  <th className="text-left py-1 font-medium">Type</th>
-                                  <th className="text-center py-1 font-medium">Qty</th>
-                                  <th className="text-right py-1 font-medium">Unit Price</th>
-                                  <th className="text-right py-1 font-medium">Total</th>
-                                </tr>
-                              </thead>
-                              <tbody>
-                                {bill.bill_items.map(item => (
-                                  <tr key={item.id} className="border-b border-border/20 last:border-0">
-                                    <td className="py-1 font-medium">{item.name}</td>
-                                    <td className="py-1 text-muted-foreground capitalize">{item.item_type}</td>
-                                    <td className="py-1 text-center">{item.qty}</td>
-                                    <td className="py-1 text-right">{sym}{Number(item.unit_price).toLocaleString("en-IN")}</td>
-                                    <td className="py-1 text-right font-semibold">{sym}{Number(item.total_price).toLocaleString("en-IN")}</td>
-                                  </tr>
-                                ))}
-                              </tbody>
-                            </table>
-                          ) : (
-                            <p className="text-xs text-muted-foreground italic">No line items recorded</p>
-                          )}
-                          {(bill.loyalty_points_earned > 0 || bill.loyalty_points_used > 0) && (
-                            <div className="flex gap-4 mt-2 pt-2 border-t border-border/20 text-xs text-muted-foreground">
-                              {bill.loyalty_points_earned > 0 && <span>+{bill.loyalty_points_earned} pts earned</span>}
-                              {bill.loyalty_points_used > 0 && <span>−{bill.loyalty_points_used} pts redeemed</span>}
-                            </div>
-                          )}
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  )}
-                </>
-              ))}
-            </TableBody>
-          </Table>
-        </div>
-      )}
-    </div>
-  );
-}
-
-// ─── Sessions Tab ─────────────────────────────────────────────────────────────
-
-function SessionsTab({ sessions, loading, sym, onExport }: {
-  sessions: Session[]; loading: boolean; sym: string; onExport: () => void;
-}) {
-  const [search, setSearch] = useState("");
-
-  const filtered = sessions.filter(s => {
-    if (!search) return true;
-    const q = search.toLowerCase();
-    return (s.stations?.name ?? "").toLowerCase().includes(q);
-  });
-
-  if (loading) return <div className="space-y-2">{[...Array(5)].map((_, i) => <Skeleton key={i} className="h-10" />)}</div>;
-
-  return (
-    <div className="space-y-3">
-      <div className="flex gap-2 items-center">
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
-          <Input placeholder="Search station…" value={search} onChange={e => setSearch(e.target.value)} className="pl-8 h-8 text-sm w-48" />
-        </div>
-        <span className="text-xs text-muted-foreground ml-auto">{filtered.length} session{filtered.length !== 1 ? "s" : ""}</span>
-        <Button variant="outline" size="sm" className="h-8 gap-1.5" onClick={onExport}>
-          <Download className="h-3.5 w-3.5" /> Export CSV
-        </Button>
-      </div>
-
-      {filtered.length === 0 ? (
-        <div className="text-center py-12 text-muted-foreground">No sessions in this period</div>
-      ) : (
-        <div className="rounded-md border overflow-hidden">
-          <Table>
-            <TableHeader>
-              <TableRow className="bg-muted/30">
-                <TableHead className="text-xs">Station</TableHead>
-                <TableHead className="text-xs">Started</TableHead>
-                <TableHead className="text-xs">Ended</TableHead>
-                <TableHead className="text-xs">Duration</TableHead>
-                <TableHead className="text-xs text-right">Rate/hr</TableHead>
-                <TableHead className="text-xs">Status</TableHead>
-                <TableHead className="text-xs text-right">Amount</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filtered.map(s => (
-                <TableRow key={s.id}>
-                  <TableCell>
-                    <div className="font-medium text-sm">{s.stations?.name ?? "—"}</div>
-                    {s.stations?.type && <div className="text-xs text-muted-foreground capitalize">{s.stations.type}</div>}
-                  </TableCell>
-                  <TableCell className="text-sm text-muted-foreground">
-                    {new Date(s.started_at).toLocaleString("en-IN", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}
-                  </TableCell>
-                  <TableCell className="text-sm text-muted-foreground">
-                    {s.ended_at ? new Date(s.ended_at).toLocaleString("en-IN", { hour: "2-digit", minute: "2-digit" }) : <span className="text-emerald-400 text-xs">Active</span>}
-                  </TableCell>
-                  <TableCell className="text-sm">
-                    {s.duration_mins != null ? `${s.duration_mins}m` : "—"}
-                  </TableCell>
-                  <TableCell className="text-right text-sm">
-                    {s.rate_per_hour != null ? `${sym}${Number(s.rate_per_hour).toLocaleString("en-IN")}` : "—"}
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant="outline" className={`text-xs ${s.status === "completed" ? "text-emerald-400 border-emerald-400/30" : s.status === "active" ? "text-blue-400 border-blue-400/30" : "text-muted-foreground"}`}>
-                      {s.status}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="text-right font-semibold text-sm">
-                    {s.total_amount != null ? `${sym}${Number(s.total_amount).toLocaleString("en-IN")}` : "—"}
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </div>
-      )}
-    </div>
-  );
-}
-
 // ─── Bookings Tab ─────────────────────────────────────────────────────────────
 
 function BookingsTab({ bookings, loading, sym, onExport }: {
@@ -499,7 +253,7 @@ function BookingsTab({ bookings, loading, sym, onExport }: {
           ))}
         </div>
         <Button variant="outline" size="sm" className="h-8 gap-1.5 ml-auto" onClick={onExport}>
-          <Download className="h-3.5 w-3.5" /> Export CSV
+          <Download className="h-3.5 w-3.5" /> Export Excel
         </Button>
       </div>
 
@@ -514,7 +268,9 @@ function BookingsTab({ bookings, loading, sym, onExport }: {
                 <TableHead className="text-xs">Time Slot</TableHead>
                 <TableHead className="text-xs">Station</TableHead>
                 <TableHead className="text-xs">Customer</TableHead>
+                <TableHead className="text-xs">Email</TableHead>
                 <TableHead className="text-xs">Status</TableHead>
+                <TableHead className="text-xs">Source</TableHead>
                 <TableHead className="text-xs text-right">Amount</TableHead>
               </TableRow>
             </TableHeader>
@@ -532,10 +288,14 @@ function BookingsTab({ bookings, loading, sym, onExport }: {
                     <div>{b.customer_name}</div>
                     <div className="text-xs text-muted-foreground">{b.customer_phone}</div>
                   </TableCell>
+                  <TableCell className="text-xs text-muted-foreground max-w-[140px] truncate">{b.customer_email ?? "—"}</TableCell>
                   <TableCell>
                     <Badge variant="outline" className={`text-xs capitalize ${STATUS_BOOKING[b.status] ?? "text-muted-foreground"}`}>
                       {b.status}
                     </Badge>
+                  </TableCell>
+                  <TableCell className="text-xs capitalize">
+                    {b.gateway_order_id ? "Online / gateway" : b.payment_mode === "online" ? "Online" : "Venue"}
                   </TableCell>
                   <TableCell className="text-right font-semibold text-sm">
                     {sym}{Number(b.amount ?? 0).toLocaleString("en-IN")}
@@ -552,58 +312,52 @@ function BookingsTab({ bookings, loading, sym, onExport }: {
 
 // ─── Daily Revenue Tab ────────────────────────────────────────────────────────
 
-function DailyRevenueTab({ data, sym, loading }: {
-  data: { date: string; revenue: number; bills: number }[];
+function DailyRevenueTab({ trend, sym, loading, bucketHint }: {
+  trend: { label: string; revenue: number; bills: number; key: string }[];
   sym: string;
   loading: boolean;
+  bucketHint: string;
 }) {
   if (loading) return <Skeleton className="h-64" />;
-  if (!data.length) return <p className="text-center py-12 text-muted-foreground">No data for this period</p>;
+  if (!trend.length) return <p className="text-center py-12 text-muted-foreground">No data for this period</p>;
 
-  const total = data.reduce((s, d) => s + d.revenue, 0);
-  const peak = data.reduce((m, d) => d.revenue > m.revenue ? d : m, data[0]);
-
-  const chartData = data.map(d => ({
-    label: new Date(d.date + "T00:00:00").toLocaleDateString("en-IN", { day: "numeric", month: "short" }),
-    revenue: d.revenue,
-    bills: d.bills,
-  }));
+  const total = trend.reduce((s, d) => s + d.revenue, 0);
+  const peak = trend.reduce((m, d) => d.revenue > m.revenue ? d : m, trend[0]);
 
   return (
     <div className="space-y-4">
+      <p className="text-xs text-muted-foreground">{bucketHint}</p>
       <div className="grid grid-cols-3 gap-3">
         <Card><CardContent className="pt-3 pb-3">
           <p className="text-xs text-muted-foreground">Total Revenue</p>
           <p className="text-xl font-bold text-emerald-400">{sym}{total.toLocaleString("en-IN")}</p>
         </CardContent></Card>
         <Card><CardContent className="pt-3 pb-3">
-          <p className="text-xs text-muted-foreground">Peak Day</p>
-          <p className="text-xl font-bold text-foreground">
-            {new Date(peak.date + "T00:00:00").toLocaleDateString("en-IN", { day: "numeric", month: "short" })}
-          </p>
+          <p className="text-xs text-muted-foreground">Peak bucket</p>
+          <p className="text-xl font-bold text-foreground">{peak.label}</p>
           <p className="text-xs text-emerald-400">{sym}{peak.revenue.toLocaleString("en-IN")}</p>
         </CardContent></Card>
         <Card><CardContent className="pt-3 pb-3">
-          <p className="text-xs text-muted-foreground">Avg Daily Revenue</p>
-          <p className="text-xl font-bold text-foreground">{sym}{Math.round(total / data.length).toLocaleString("en-IN")}</p>
+          <p className="text-xs text-muted-foreground">Avg per bucket</p>
+          <p className="text-xl font-bold text-foreground">{sym}{Math.round(total / trend.length).toLocaleString("en-IN")}</p>
         </CardContent></Card>
       </div>
 
       {/* Bar chart */}
       <Card>
         <CardHeader className="pb-2">
-          <CardTitle className="text-sm flex items-center gap-2"><BarChart3 className="h-4 w-4" /> Daily Revenue</CardTitle>
+          <CardTitle className="text-sm flex items-center gap-2"><BarChart3 className="h-4 w-4" /> Revenue trend</CardTitle>
         </CardHeader>
         <CardContent>
           <ResponsiveContainer width="100%" height={240}>
-            <BarChart data={chartData} margin={{ top: 4, right: 8, bottom: 24, left: 8 }}>
+            <BarChart data={trend} margin={{ top: 4, right: 8, bottom: 24, left: 8 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.06)" />
               <XAxis
                 dataKey="label"
                 tick={{ fontSize: 10, fill: "#8d96b3" }}
                 angle={-45}
                 textAnchor="end"
-                interval={Math.max(0, Math.floor(chartData.length / 12) - 1)}
+                interval={Math.max(0, Math.floor(trend.length / 12) - 1)}
               />
               <YAxis tick={{ fontSize: 10, fill: "#8d96b3" }} tickFormatter={v => `${sym}${v >= 1000 ? (v / 1000).toFixed(0) + "k" : v}`} />
               <Tooltip
@@ -627,18 +381,16 @@ function DailyRevenueTab({ data, sym, loading }: {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {[...data].reverse().map(d => (
-              <TableRow key={d.date}>
-                <TableCell className="font-medium text-sm">
-                  {new Date(d.date + "T00:00:00").toLocaleDateString("en-IN", { weekday: "short", day: "numeric", month: "short" })}
-                </TableCell>
+            {[...trend].reverse().map(d => (
+              <TableRow key={d.key}>
+                <TableCell className="font-medium text-sm">{d.label}</TableCell>
                 <TableCell className="text-center text-muted-foreground text-sm">{d.bills}</TableCell>
                 <TableCell className="text-right font-semibold text-emerald-400">{sym}{d.revenue.toLocaleString("en-IN")}</TableCell>
               </TableRow>
             ))}
             <TableRow className="font-bold bg-muted/20">
               <TableCell>Total</TableCell>
-              <TableCell className="text-center">{data.reduce((s, d) => s + d.bills, 0)}</TableCell>
+              <TableCell className="text-center">{trend.reduce((s, d) => s + d.bills, 0)}</TableCell>
               <TableCell className="text-right text-emerald-400">{sym}{total.toLocaleString("en-IN")}</TableCell>
             </TableRow>
           </TableBody>
@@ -712,8 +464,41 @@ export default function Reports() {
     setRange(r);
   };
 
-  const { loading, bills, sessions, bookings, metrics, prevMetrics, exportBills, exportSessions, exportBookings } =
-    useReports(tenantId, range);
+  const {
+    loading, bills, sessions, bookings, metrics, prevMetrics,
+    forecastBills, sessionByDay, rangeExpenseTotal, currentMonthSales,
+    kpiStrip, kpiStripPrev,
+    businessSummary, trendChartData, canteenProfitRows, customerReportRows,
+    refetch,
+    exportBills, exportSessions, exportBookings, exportCustomers,
+  } = useReports(tenantId, range);
+
+  const rangeDays = differenceInCalendarDays(range.to, range.from) + 1;
+  const trendBucketHint =
+    rangeDays <= 60
+      ? "Chart and table use daily buckets for the selected range."
+      : rangeDays <= 180
+        ? "Chart and table group revenue by ISO week (aligned to global range, not rolling from today)."
+        : "Chart and table group revenue by calendar month.";
+
+  const insights = useMemo(() => {
+    if (!tenantId) return null;
+    const daily = buildDailyFromForecastBills(forecastBills, sessionByDay);
+    return computeBusinessInsights({
+      dailyHistory: daily,
+      rangeRevenue: metrics.totalRevenue,
+      rangeExpenses: rangeExpenseTotal,
+      now: new Date(),
+      currentMonthSales,
+    });
+  }, [tenantId, forecastBills, sessionByDay, metrics.totalRevenue, rangeExpenseTotal, currentMonthSales]);
+
+  const monthlyRevenueTarget = useMemo(() => {
+    const ext = config?.extended_config;
+    if (!ext || typeof ext !== "object") return null;
+    const v = (ext as Record<string, unknown>).monthly_revenue_target;
+    return typeof v === "number" && v > 0 ? v : null;
+  }, [config?.extended_config]);
 
   const rangeLabel = `${format(range.from, "dd MMM")} – ${format(range.to, "dd MMM yyyy")}`;
 
@@ -737,7 +522,8 @@ export default function Reports() {
         onCustomRange={handleCustomRange}
       />
 
-      {/* KPI strip */}
+      <ReportsKpiStrip cur={kpiStrip} prev={kpiStripPrev} sym={sym} />
+
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
         <KpiCard icon={DollarSign}   label="Revenue"       color="text-emerald-400"
           value={`${sym}${metrics.totalRevenue.toLocaleString("en-IN", { maximumFractionDigits: 0 })}`}
@@ -763,21 +549,62 @@ export default function Reports() {
       </div>
 
       {/* Tabs */}
-      <Tabs defaultValue="bills">
+      <Tabs defaultValue="summary">
         <TabsList className="flex-wrap h-auto gap-1">
+          <TabsTrigger value="summary" className="gap-1"><Sparkles className="h-3 w-3" /> Summary</TabsTrigger>
           <TabsTrigger value="bills">Bills</TabsTrigger>
+          <TabsTrigger value="customers">Customers</TabsTrigger>
           <TabsTrigger value="sessions">Sessions</TabsTrigger>
           <TabsTrigger value="bookings">Bookings</TabsTrigger>
           <TabsTrigger value="daily">Daily Breakdown</TabsTrigger>
           <TabsTrigger value="payments">Payment Methods</TabsTrigger>
         </TabsList>
 
+        <TabsContent value="summary" className="mt-4 space-y-4">
+          <BusinessInsightsWidget insights={insights} sym={sym} loading={loading} />
+          <BusinessSummaryCompact block={businessSummary} sym={sym} />
+          <div className="grid lg:grid-cols-2 gap-4">
+            <SummaryPaymentBar breakdown={metrics.paymentBreakdown} totalRevenue={metrics.totalRevenue} sym={sym} />
+            <SevenDayForecastChart insights={insights} sym={sym} />
+          </div>
+          <div className="grid lg:grid-cols-2 gap-4">
+            <ReportsHourlyRevenue bills={bills} sym={sym} />
+            <GamingRevenueTargetCard bills={bills} sym={sym} monthlyTarget={monthlyRevenueTarget} />
+          </div>
+          <div className="grid lg:grid-cols-2 gap-4">
+            <CanteenProfitWidget rows={canteenProfitRows} sym={sym} />
+            <TopCustomersReport bills={bills} sym={sym} />
+          </div>
+        </TabsContent>
+
         <TabsContent value="bills" className="mt-4">
-          <BillsTab bills={bills} loading={loading} sym={sym} onExport={() => exportBills(sym)} />
+          <ReportsBillsTab
+            bills={bills}
+            loading={loading}
+            sym={sym}
+            config={config ?? null}
+            onExport={() => exportBills(sym)}
+            onRefresh={refetch}
+          />
+        </TabsContent>
+
+        <TabsContent value="customers" className="mt-4">
+          <ReportsCustomersTab
+            rows={customerReportRows}
+            loading={loading}
+            sym={sym}
+            onExport={exportCustomers}
+          />
         </TabsContent>
 
         <TabsContent value="sessions" className="mt-4">
-          <SessionsTab sessions={sessions} loading={loading} sym={sym} onExport={exportSessions} />
+          <ReportsSessionsTab
+            sessions={sessions}
+            loading={loading}
+            sym={sym}
+            onExport={exportSessions}
+            onRefresh={refetch}
+          />
         </TabsContent>
 
         <TabsContent value="bookings" className="mt-4">
@@ -785,7 +612,7 @@ export default function Reports() {
         </TabsContent>
 
         <TabsContent value="daily" className="mt-4">
-          <DailyRevenueTab data={metrics.dailyRevenue} sym={sym} loading={loading} />
+          <DailyRevenueTab trend={trendChartData} sym={sym} loading={loading} bucketHint={trendBucketHint} />
         </TabsContent>
 
         <TabsContent value="payments" className="mt-4">
