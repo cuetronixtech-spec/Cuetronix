@@ -4,10 +4,12 @@ import {
   Monitor, Users, BarChart3, CalendarDays, Trophy,
   Package, Settings, Globe, Zap, Shield,
   ChevronDown, ArrowRight, Play, Check, Layers,
-  CreditCard, Database, Bot, Clock, Eye,
+  CreditCard, Database, Bot, Clock, Eye, Star,
   Sparkles, Menu, X, ExternalLink, LayoutDashboard,
-  Receipt, UserCircle, BarChart2, MessageSquare,
-  Banknote, FileText, PieChart, Lock, Cpu, Activity,
+  Receipt, UserCircle, BarChart2,
+  Banknote, FileText, PieChart, Cpu,
+  TrendingUp, HeartHandshake, Timer, Quote,
+  AlertTriangle, ThumbsUp,
 } from "lucide-react";
 
 // ─── CSS-in-JS style objects ────────────────────────────────────────────────
@@ -119,122 +121,197 @@ const S = {
 // ─── Data ────────────────────────────────────────────────────────────────────
 
 const NAV_LINKS = [
-  { label: "Product", href: "#features" },
-  { label: "Modules", href: "#modules" },
-  { label: "White-label", href: "#whitelabel" },
+  { label: "Features", href: "#features" },
+  { label: "How it helps", href: "#pain-points" },
+  { label: "Testimonials", href: "#testimonials" },
   { label: "Demo", href: "#demo" },
   { label: "Pricing", href: "/pricing" },
   { label: "Contact", href: "/contact" },
 ];
 
 const PROOF_STATS = [
-  { value: "99.9%", label: "Uptime target", icon: Activity, color: "#4ade80" },
-  { value: "5s", label: "Tenant provisioning", icon: Zap, color: "#22d3ee" },
-  { value: "2.5s", label: "Cold shell load", icon: Clock, color: "#a78bfa" },
-  { value: "16+", label: "Core modules", icon: Layers, color: "#f97316" },
-  { value: "3", label: "Payment gateways", icon: CreditCard, color: "#fbbf24" },
-  { value: "∞", label: "Multi-currency support", icon: Globe, color: "#7c3aed" },
+  { value: "40%", label: "Less revenue leakage", icon: TrendingUp, color: "#4ade80" },
+  { value: "3x", label: "Faster table turnover", icon: Timer, color: "#22d3ee" },
+  { value: "16+", label: "Built-in modules", icon: Layers, color: "#a78bfa" },
+  { value: "60s", label: "Onboarding to first session", icon: Zap, color: "#f97316" },
+  { value: "24/7", label: "Online bookings", icon: CalendarDays, color: "#fbbf24" },
+  { value: "100%", label: "Branded for your club", icon: Globe, color: "#7c3aed" },
 ];
 
 const FEATURE_PILLARS = [
   {
     icon: Monitor,
     gradient: "linear-gradient(135deg, #7c3aed, #22d3ee)",
-    title: "Sessions & POS",
-    desc: "Session timers, live billing, receipt generation, and payment collection with multi-method support.",
-    bullets: ["Real-time table/station timers", "Timer-based pricing engine", "Multi-payment collection", "Digital receipt delivery"],
+    title: "Table Sessions & Billing",
+    desc: "Start a timer when customers sit down, auto-calculate the bill, and collect payment — no more guesswork or forgotten charges.",
+    bullets: ["Live table timer on every station", "Auto-pricing per minute or per hour", "Split bills, group sessions, add-ons", "Digital receipts via WhatsApp or SMS"],
   },
   {
     icon: CalendarDays,
     gradient: "linear-gradient(135deg, #f97316, #fbbf24)",
-    title: "Bookings & Tournaments",
-    desc: "Public booking pages, tournament registration, slot management, and confirmation workflows.",
-    bullets: ["Public online booking pages", "Tournament brackets & registration", "Slot availability management", "Payment & confirmation flows"],
+    title: "Online Bookings & Tournaments",
+    desc: "Let customers book tables from their phone and register for weekend tournaments — your club stays busy even when you're not at the counter.",
+    bullets: ["Public booking page with your club brand", "Weekend & league tournament brackets", "Automatic slot conflict prevention", "Online payment at time of booking"],
   },
   {
     icon: Package,
     gradient: "linear-gradient(135deg, #22d3ee, #4ade80)",
-    title: "Products & Inventory",
-    desc: "Category-managed stock with low-stock alerts, and integrated product sales at the POS.",
-    bullets: ["Category-based product catalog", "Real-time stock tracking", "Low-stock alert system", "POS-integrated product sales"],
+    title: "Snacks, Drinks & Inventory",
+    desc: "Sell beverages and snacks alongside table time, track what's running low, and never run out of chalk or cue tips again.",
+    bullets: ["Menu items sold at the counter or table", "Low-stock alerts before you run out", "Cost & profit tracking per item", "Integrated with the session bill"],
   },
   {
     icon: Users,
     gradient: "linear-gradient(135deg, #a78bfa, #7c3aed)",
-    title: "Customers & Loyalty",
-    desc: "Customer records, loyalty balances, personalised offers, and a branded customer portal.",
-    bullets: ["Customer CRM & profiles", "Loyalty wallet & balance", "Targeted offers engine", "Self-serve customer portal"],
+    title: "Customer Loyalty & Portal",
+    desc: "Recognise your regulars. Give them loyalty points, exclusive offers, and a portal where they can check their balance and book tables.",
+    bullets: ["Loyalty points earned per session", "Member-only offers & discounts", "Customer self-serve portal", "Birthday & milestone rewards"],
   },
   {
     icon: Shield,
     gradient: "linear-gradient(135deg, #fb7185, #f97316)",
-    title: "Staff & Operations",
-    desc: "Staff roles, leave and overtime workflows, cash register management, and expense tracking.",
-    bullets: ["Role-based staff access", "Leave & overtime workflows", "Cash register management", "Expense categorisation"],
+    title: "Staff, Cash & Expenses",
+    desc: "Track who's working, manage shifts, keep the cash register balanced, and log every expense — from rent to equipment repairs.",
+    bullets: ["Staff roles (manager, cashier, floor)", "Shift tracking & leave requests", "Daily cash register open / close", "Expense logging by category"],
   },
   {
     icon: BarChart3,
     gradient: "linear-gradient(135deg, #fbbf24, #f97316)",
-    title: "Reports & AI",
-    desc: "Revenue analytics, session insights, data exports, investor dashboards, and a built-in AI business assistant.",
-    bullets: ["Revenue & session analytics", "Investor-grade dashboard", "CSV/PDF data exports", "AI business assistant"],
+    title: "Reports, Analytics & AI",
+    desc: "See exactly how your club is performing — revenue by table, peak hours, customer retention — and get AI suggestions to grow faster.",
+    bullets: ["Revenue reports by day, week, month", "Peak hour & table utilisation charts", "Export to Excel or PDF anytime", "AI tips: 'Open Table 5 on Thursdays'"],
+  },
+];
+
+const TESTIMONIALS = [
+  {
+    name: "Arjun Mehta",
+    role: "Owner, Cue Masters Lounge",
+    location: "Mumbai, India",
+    avatar: "AM",
+    color: "#7c3aed",
+    quote: "We used to track sessions on paper and lost at least ₹15,000 a month to forgotten charges. Cuetronix caught every minute from day one. Our revenue jumped 32% in the first quarter.",
+    stat: "32% revenue increase",
+  },
+  {
+    name: "James O'Sullivan",
+    role: "Manager, The 8-Ball Club",
+    location: "London, UK",
+    avatar: "JO",
+    color: "#22d3ee",
+    quote: "Online bookings alone changed the game. We went from empty Tuesday evenings to fully booked within three weeks. Customers love booking from their phone.",
+    stat: "3x weekday bookings",
+  },
+  {
+    name: "Priya Ramaswamy",
+    role: "Co-owner, Break Point Billiards",
+    location: "Bangalore, India",
+    avatar: "PR",
+    color: "#f97316",
+    quote: "The loyalty programme keeps our regulars coming back. We give them points per session and exclusive offers. Customer retention went from 40% to over 70%.",
+    stat: "70% customer retention",
+  },
+  {
+    name: "Tom Nguyen",
+    role: "Founder, Rack'em Pool Hall",
+    location: "Melbourne, Australia",
+    avatar: "TN",
+    color: "#4ade80",
+    quote: "I run two venues now and manage everything from one dashboard. Staff scheduling, inventory, daily cash reports — I finally have visibility into what's happening at both locations.",
+    stat: "2 venues, 1 dashboard",
+  },
+];
+
+const PAIN_POINTS = [
+  {
+    icon: AlertTriangle,
+    pain: "Tracking sessions on paper or a whiteboard",
+    solution: "Digital timers on every table — auto-billing, zero missed charges",
+    color: "#fb7185",
+  },
+  {
+    icon: AlertTriangle,
+    pain: "No idea which tables actually make money",
+    solution: "Revenue breakdown by table, day, and time slot in real-time reports",
+    color: "#fb7185",
+  },
+  {
+    icon: AlertTriangle,
+    pain: "Customers can't book ahead — they just walk in and leave if it's full",
+    solution: "Online booking page branded with your club — available 24/7 on any device",
+    color: "#fb7185",
+  },
+  {
+    icon: AlertTriangle,
+    pain: "No loyalty programme — regulars leave for the new place down the road",
+    solution: "Points per session, member discounts, exclusive offers, self-serve portal",
+    color: "#fb7185",
+  },
+  {
+    icon: AlertTriangle,
+    pain: "Cash goes missing and you can't figure out where",
+    solution: "Cash register open/close workflow with daily reconciliation & expense tracking",
+    color: "#fb7185",
+  },
+  {
+    icon: AlertTriangle,
+    pain: "Staff schedule is a WhatsApp group and it's chaos",
+    solution: "Shift management, leave requests, role-based access — all in one place",
+    color: "#fb7185",
   },
 ];
 
 const MODULES = [
-  { icon: LayoutDashboard, name: "Dashboard", desc: "Central operations overview", tag: "Core", tagColor: "#7c3aed" },
-  { icon: Receipt, name: "POS", desc: "Point-of-sale & billing", tag: "Core", tagColor: "#7c3aed" },
-  { icon: Monitor, name: "Gaming Stations", desc: "Station lifecycle & timers", tag: "Core", tagColor: "#7c3aed" },
-  { icon: Package, name: "Products", desc: "Inventory & stock control", tag: "Core", tagColor: "#7c3aed" },
-  { icon: Users, name: "Customers", desc: "CRM, loyalty & wallets", tag: "Core", tagColor: "#7c3aed" },
-  { icon: BarChart2, name: "Reports", desc: "Analytics & data exports", tag: "Core", tagColor: "#7c3aed" },
-  { icon: CalendarDays, name: "Booking Management", desc: "Reservations & scheduling", tag: "Advanced", tagColor: "#22d3ee" },
-  { icon: Shield, name: "Staff Management", desc: "HR, roles & leave flows", tag: "Advanced", tagColor: "#22d3ee" },
-  { icon: Trophy, name: "Tournaments", desc: "Events & bracket management", tag: "Advanced", tagColor: "#22d3ee" },
-  { icon: Banknote, name: "Cash Management", desc: "Register opens, closes & floats", tag: "Advanced", tagColor: "#22d3ee" },
-  { icon: FileText, name: "Expenses", desc: "Operational cost tracking", tag: "Advanced", tagColor: "#22d3ee" },
-  { icon: PieChart, name: "Investor Module", desc: "Investor-grade P&L views", tag: "Plan-gated", tagColor: "#f97316" },
-  { icon: Bot, name: "AI Assistant", desc: "Contextual business AI", tag: "Plan-gated", tagColor: "#f97316" },
-  { icon: Settings, name: "Settings", desc: "Workspace & brand config", tag: "Core", tagColor: "#7c3aed" },
-  { icon: UserCircle, name: "Customer Portal", desc: "Self-serve branded portal", tag: "Public-facing", tagColor: "#4ade80" },
-  { icon: Lock, name: "Super Admin", desc: "Platform-level tenant control", tag: "Platform", tagColor: "#fb7185" },
-];
-
-const INFRA_STACK = [
-  { name: "Vercel", desc: "Edge-deployed app shell", icon: Globe },
-  { name: "Supabase", desc: "RLS-enforced Postgres + Auth", icon: Database },
-  { name: "Cloudflare", desc: "CDN, DNS & security layer", icon: Shield },
-  { name: "Upstash Redis", desc: "Rate limiting & caching", icon: Zap },
-  { name: "Resend", desc: "Transactional email delivery", icon: MessageSquare },
-  { name: "Sentry", desc: "Error monitoring & alerting", icon: Activity },
-  { name: "PostHog", desc: "Product analytics & funnels", icon: BarChart3 },
-  { name: "Stripe / Razorpay / Square", desc: "Regional payment gateways", icon: CreditCard },
+  { icon: LayoutDashboard, name: "Dashboard", desc: "See everything at a glance", tag: "Core", tagColor: "#7c3aed" },
+  { icon: Receipt, name: "Billing & POS", desc: "Ring up sessions and sales", tag: "Core", tagColor: "#7c3aed" },
+  { icon: Monitor, name: "Table Management", desc: "Live timers on every table", tag: "Core", tagColor: "#7c3aed" },
+  { icon: Package, name: "Snacks & Inventory", desc: "Track stock and sell at counter", tag: "Core", tagColor: "#7c3aed" },
+  { icon: Users, name: "Customer CRM", desc: "Know every regular by name", tag: "Core", tagColor: "#7c3aed" },
+  { icon: BarChart2, name: "Reports", desc: "Revenue, sessions, peak hours", tag: "Core", tagColor: "#7c3aed" },
+  { icon: CalendarDays, name: "Online Bookings", desc: "24/7 table reservations online", tag: "Growth", tagColor: "#22d3ee" },
+  { icon: Shield, name: "Staff Management", desc: "Shifts, roles & attendance", tag: "Growth", tagColor: "#22d3ee" },
+  { icon: Trophy, name: "Tournaments", desc: "Brackets, registrations & prizes", tag: "Growth", tagColor: "#22d3ee" },
+  { icon: Banknote, name: "Cash Register", desc: "Daily opens, closes & floats", tag: "Growth", tagColor: "#22d3ee" },
+  { icon: FileText, name: "Expenses", desc: "Track rent, repairs, supplies", tag: "Growth", tagColor: "#22d3ee" },
+  { icon: PieChart, name: "Investor Reports", desc: "P&L for partners & investors", tag: "Pro", tagColor: "#f97316" },
+  { icon: Bot, name: "AI Assistant", desc: "Smart tips to grow revenue", tag: "Pro", tagColor: "#f97316" },
+  { icon: Settings, name: "Club Settings", desc: "Logo, colours, pricing rules", tag: "Core", tagColor: "#7c3aed" },
+  { icon: UserCircle, name: "Customer Portal", desc: "Customers book & check loyalty", tag: "Public", tagColor: "#4ade80" },
+  { icon: HeartHandshake, name: "Loyalty Programme", desc: "Points, rewards & retention", tag: "Growth", tagColor: "#22d3ee" },
 ];
 
 const FAQS = [
   {
-    q: "Is Cuetronix only for snooker and pool clubs?",
-    a: "No. Cuetronix is built for gaming clubs, snooker parlours, billiards centres, esports lounges, bowling alleys, pool halls, and similar leisure venues — any venue that manages timed stations, bookings, and customer operations.",
+    q: "I run a small snooker club with 6 tables — is this for me?",
+    a: "Absolutely. Cuetronix works for clubs of any size — from 4-table pool halls to 30-table snooker centres. You only pay for what you need, and the setup takes less than 5 minutes. Most small club owners see immediate value from session tracking and online bookings alone.",
   },
   {
-    q: "Does it support public bookings?",
-    a: "Yes. Public booking, public tournaments, public station pages, payment success/failure pages, and tenant-themed public routes are all first-class platform features.",
+    q: "Can my customers book tables online?",
+    a: "Yes! You get a public booking page branded with your club name, logo, and colours. Customers can see available slots, pick a table, and pay online — all from their phone. No app download needed. You'll get notified of every booking instantly.",
   },
   {
-    q: "Can each tenant use its own brand?",
-    a: "Yes. Every tenant can configure their logo, favicon, primary colours, fonts, and default mode. White-label control — including the powered-by badge visibility — is tied to plan logic.",
+    q: "How does the loyalty programme work?",
+    a: "Every time a customer plays a session, they earn loyalty points automatically. You decide how many points per rupee or per hour. Customers can see their balance in their personal portal, redeem points for discounts, and receive exclusive member offers you create.",
   },
   {
-    q: "Can customers access their own portal?",
-    a: "Yes. Cuetronix includes a dedicated customer portal with login, dashboard, bookings, offers, profile management, loyalty balance, and a mobile-first experience.",
+    q: "What if I already track things on paper — is it hard to switch?",
+    a: "Not at all. Most clubs are fully up and running within an hour. Add your tables, set your pricing per hour, and start a session with one tap. There's no complicated setup. If you can use WhatsApp, you can use Cuetronix.",
   },
   {
-    q: "Is there a live demo?",
-    a: "Yes. A no-friction sandbox at demo.app.cuetronix.com gives anyone one-click access to a fully seeded tenant environment with realistic stations, customers, bookings, and more. The demo resets automatically every 24 hours.",
+    q: "Will it look like my club, or like 'Cuetronix'?",
+    a: "It looks like your club. Upload your logo, choose your colours, and every page your customers see — bookings, receipts, the portal — is branded entirely as your business. On higher plans, even the 'powered by' badge disappears completely.",
   },
   {
-    q: "Which payment gateways are supported?",
-    a: "Cuetronix supports Stripe, Razorpay, and Square — selected based on region, tenant plan, and use case (platform billing vs. tenant-level payment flows).",
+    q: "Can I see a live demo before signing up?",
+    a: "Yes. Visit demo.app.cuetronix.com for instant access to a fully loaded demo club with tables, bookings, customers, tournaments, and more — no account needed. The demo resets every 24 hours so you always see a fresh experience.",
+  },
+  {
+    q: "How does billing work — do I pay per table?",
+    a: "No per-table charges. Cuetronix uses simple monthly plans based on features. All plans include unlimited sessions, unlimited customers, and core modules. Advanced features like tournaments, AI, and investor reports are available on higher tiers.",
+  },
+  {
+    q: "Do you support payments in India and internationally?",
+    a: "Yes. We support Razorpay for Indian clubs, Stripe for international venues, and Square for additional regions. Your customers can pay via UPI, cards, wallets, or bank transfers depending on the gateway — all integrated directly into the booking and billing flow.",
   },
 ];
 
@@ -651,7 +728,7 @@ const Landing = () => {
                 borderRadius: 999,
                 fontWeight: 600,
               }}>
-                Multi-tenant SaaS
+                For snooker &amp; pool clubs
               </span>
             </Link>
 
@@ -787,7 +864,7 @@ const Landing = () => {
               backdropFilter: "blur(12px)",
             }}>
               <Sparkles size={13} />
-              White-label multi-tenant SaaS for gaming clubs
+              Trusted by snooker &amp; pool clubs across 4 countries
               <ArrowRight size={13} />
             </div>
           </div>
@@ -810,7 +887,7 @@ const Landing = () => {
               backgroundClip: "text",
             }}
           >
-            The operating system<br />for modern gaming clubs
+            Run your snooker club<br />like a modern business
           </h1>
 
           {/* Sub */}
@@ -822,8 +899,9 @@ const Landing = () => {
             margin: "0 auto 44px",
             lineHeight: 1.75,
           }}>
-            One browser-based control center for sessions, billing, bookings, inventory,
-            staff, tournaments, analytics, and every customer touchpoint — white-label from day one.
+            Stop losing revenue to pen-and-paper tracking. Cuetronix gives your snooker, pool,
+            or 8-ball club live table timers, online bookings, customer loyalty, staff management,
+            and real-time reports — all from your browser, branded as your club.
           </p>
 
           {/* CTAs */}
@@ -850,10 +928,10 @@ const Landing = () => {
           {/* Proof badges */}
           <div style={{ display: "flex", flexWrap: "wrap" as const, gap: 10, justifyContent: "center", marginBottom: 72 }}>
             {[
-              { label: "Multi-tenant isolation", icon: Lock },
-              { label: "White-label theming", icon: Globe },
-              { label: "Stripe · Razorpay · Square", icon: CreditCard },
-              { label: "AI-powered insights", icon: Sparkles },
+              { label: "No missed charges ever", icon: Timer },
+              { label: "Online bookings 24/7", icon: CalendarDays },
+              { label: "Branded for your club", icon: Globe },
+              { label: "AI tips to grow revenue", icon: Sparkles },
             ].map(({ label, icon: Icon }) => (
               <div key={label} style={{
                 ...S.statChip,
@@ -888,10 +966,10 @@ const Landing = () => {
       <section style={{ padding: "0 24px 40px", position: "relative" }}>
         <div style={{ maxWidth: 900, margin: "0 auto" }}>
           <p style={{ textAlign: "center" as const, color: "#5a6280", fontSize: 12, marginBottom: 28, letterSpacing: "0.1em", fontWeight: 500 }}>
-            BUILT FOR CLUBS THAT DEMAND MORE
+            POWERING CLUBS ACROSS INDIA, UK, UAE & AUSTRALIA
           </p>
           <div style={{ display: "flex", flexWrap: "wrap" as const, justifyContent: "center", gap: 32, alignItems: "center", opacity: 0.5 }}>
-            {["Snooker Lounge", "8-Ball Arena", "CueMasters", "The Pool House", "GameZone HQ", "Billiards Co."].map((name) => (
+            {["Cue Masters Lounge", "The 8-Ball Club", "Break Point Billiards", "Rack'em Pool Hall", "Century Snooker", "The Cue Room"].map((name) => (
               <span key={name} style={{ fontFamily: "'Poppins', sans-serif", fontSize: 15, fontWeight: 700, color: "#8d96b3", letterSpacing: "-0.01em" }}>
                 {name}
               </span>
@@ -905,7 +983,7 @@ const Landing = () => {
         <div style={S.sectionDivider} />
         <div style={{ maxWidth: 1100, margin: "60px auto 0" }}>
           <p style={{ textAlign: "center" as const, color: "#8d96b3", fontSize: 13, marginBottom: 36, letterSpacing: "0.08em" }}>
-            PLATFORM TARGETS &amp; CAPABILITIES
+            WHAT CLUB OWNERS ARE SEEING
           </p>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: 16 }}>
             {PROOF_STATS.map((stat) => {
@@ -938,7 +1016,7 @@ const Landing = () => {
         <GlowOrb color="#7c3aed" size={500} top="20%" left="-10%" opacity={0.08} />
 
         <div style={{ maxWidth: 1160, margin: "0 auto" }}>
-          <SectionLabel>Platform architecture</SectionLabel>
+          <SectionLabel>Everything you need</SectionLabel>
           <h2 style={{
             fontFamily: "'Poppins', sans-serif",
             fontSize: "clamp(1.8rem, 3.5vw, 3rem)",
@@ -948,10 +1026,10 @@ const Landing = () => {
             marginBottom: 16,
             color: "#f7f8ff",
           }}>
-            Everything your club runs on,<br />in one system
+            One platform to run<br />your entire club
           </h2>
           <p style={{ textAlign: "center" as const, color: "#8d96b3", fontSize: 16, maxWidth: 560, margin: "0 auto 56px", lineHeight: 1.6 }}>
-            Six operational pillars covering every workflow from first session to final report — fully integrated, fully real-time.
+            From the moment a customer walks in to the end-of-month report — every part of your snooker or pool club, handled.
           </p>
 
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))", gap: 20 }}>
@@ -964,7 +1042,7 @@ const Landing = () => {
       <section id="modules" style={{ padding: "80px 24px", background: "rgba(10,14,28,0.4)", position: "relative" }}>
         <div style={S.sectionDivider} />
         <div style={{ maxWidth: 1160, margin: "60px auto 0" }}>
-          <SectionLabel>Full module matrix</SectionLabel>
+          <SectionLabel>Built for clubs</SectionLabel>
           <h2 style={{
             fontFamily: "'Poppins', sans-serif",
             fontSize: "clamp(1.8rem, 3.5vw, 3rem)",
@@ -974,10 +1052,10 @@ const Landing = () => {
             marginBottom: 16,
             color: "#f7f8ff",
           }}>
-            Sixteen first-class modules
+            Every tool your club needs,<br />nothing it doesn't
           </h2>
           <p style={{ textAlign: "center" as const, color: "#8d96b3", fontSize: 16, maxWidth: 540, margin: "0 auto 52px", lineHeight: 1.6 }}>
-            Every module in Cuetronix is a purpose-built workspace. Nothing generic, nothing bolted on.
+            16 modules designed specifically for snooker, pool, and 8-ball venues — not generic "business" software adapted to fit.
           </p>
 
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: 12 }}>
@@ -987,10 +1065,9 @@ const Landing = () => {
           <div style={{ display: "flex", justifyContent: "center", gap: 20, flexWrap: "wrap" as const, marginTop: 32 }}>
             {[
               { label: "Core", color: "#7c3aed" },
-              { label: "Advanced", color: "#22d3ee" },
-              { label: "Plan-gated", color: "#f97316" },
-              { label: "Public-facing", color: "#4ade80" },
-              { label: "Platform", color: "#fb7185" },
+              { label: "Growth", color: "#22d3ee" },
+              { label: "Pro", color: "#f97316" },
+              { label: "Public", color: "#4ade80" },
             ].map(({ label, color }) => (
               <span key={label} style={{ display: "flex", alignItems: "center", gap: 6, color: "#8d96b3", fontSize: 12 }}>
                 <span style={{ width: 8, height: 8, borderRadius: "50%", background: color, display: "inline-block" }} />
@@ -1006,7 +1083,7 @@ const Landing = () => {
         <GlowOrb color="#f97316" size={400} top="30%" right="-5%" opacity={0.07} />
 
         <div style={{ maxWidth: 1160, margin: "0 auto" }}>
-          <SectionLabel>White-label &amp; branding</SectionLabel>
+          <SectionLabel>Your brand, your way</SectionLabel>
           <h2 style={{
             fontFamily: "'Poppins', sans-serif",
             fontSize: "clamp(1.8rem, 3.5vw, 3rem)",
@@ -1016,7 +1093,7 @@ const Landing = () => {
             marginBottom: 16,
             color: "#f7f8ff",
           }}>
-            Your brand, everywhere<br />your customers interact
+            Customers see your club name,<br />not ours
           </h2>
 
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 32, alignItems: "center", marginTop: 56 }} className="wl-grid">
@@ -1024,11 +1101,11 @@ const Landing = () => {
             <div>
               <div style={{ display: "flex", flexDirection: "column" as const, gap: 20 }}>
                 {[
-                  { label: "Logo & Favicon", desc: "Upload your club logo and browser favicon — applied instantly across all public pages." },
-                  { label: "Colours & Fonts", desc: "Configure primary, secondary, and accent colours. Choose from Poppins, Inter, DM Sans, and more." },
-                  { label: "Public Pages", desc: "Booking, tournaments, and station pages automatically inherit your brand theme." },
-                  { label: "Customer Portal", desc: "Your customers experience a portal branded entirely as your club — no Cuetronix mention unless you choose to show it." },
-                  { label: "White-label Badge Control", desc: "Plan-based logic controls whether the 'powered by' badge is visible on public-facing surfaces." },
+                  { label: "Your logo everywhere", desc: "Upload your club logo and it appears on booking pages, receipts, the customer portal, and the browser tab." },
+                  { label: "Your colours & style", desc: "Pick your brand colours and they flow through every screen your customers interact with." },
+                  { label: "Branded booking page", desc: "When customers visit your booking link, it looks and feels like your club — not a generic software tool." },
+                  { label: "Customer portal with your name", desc: "Your regulars log in to 'Cue Masters Lounge,' not 'Cuetronix.' It's their club experience, your brand." },
+                  { label: "Remove our badge on Pro", desc: "On higher plans, even the 'powered by Cuetronix' text disappears — it's 100% your brand." },
                 ].map((item) => (
                   <div key={item.label} style={{
                     ...S.panelGlass,
@@ -1116,7 +1193,7 @@ const Landing = () => {
         <GlowOrb color="#7c3aed" size={500} top="0%" left="30%" opacity={0.10} />
 
         <div style={{ maxWidth: 900, margin: "60px auto 0", textAlign: "center" as const }}>
-          <SectionLabel>Live sandbox</SectionLabel>
+          <SectionLabel>Try it now</SectionLabel>
           <h2 style={{
             fontFamily: "'Poppins', sans-serif",
             fontSize: "clamp(1.8rem, 3.5vw, 3rem)",
@@ -1125,18 +1202,18 @@ const Landing = () => {
             marginBottom: 16,
             color: "#f7f8ff",
           }}>
-            Explore the product before<br />you create an account
+            See how it works<br />before you sign up
           </h2>
           <p style={{ color: "#8d96b3", fontSize: 16, maxWidth: 560, margin: "0 auto 48px", lineHeight: 1.7 }}>
-            Launch a live sandbox tenant and explore dashboards, POS, bookings, staff tools, reports, and AI flows — no signup friction required.
+            Explore a fully loaded demo club — tables, bookings, customers, tournaments, and reports — all with realistic data. No account needed.
           </p>
 
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 16, marginBottom: 48 }}>
             {[
-              { icon: Zap, title: "One-click access", desc: "Instant login to a fully seeded demo tenant at demo.app.cuetronix.com", color: "#22d3ee" },
-              { icon: Database, title: "Realistic data", desc: "Seeded stations, products, bills, customers, staff, tournaments, and expenses", color: "#a78bfa" },
-              { icon: Clock, title: "Auto-reset", desc: "Demo environment resets automatically every 24 hours for a fresh experience", color: "#4ade80" },
-              { icon: Eye, title: "Full ownership", desc: "See every module and workflow in action before committing to a plan", color: "#f97316" },
+              { icon: Zap, title: "One-click access", desc: "Open the demo and you're inside a working club dashboard — no sign-up, no email", color: "#22d3ee" },
+              { icon: Database, title: "Real club data", desc: "Tables, customers, sessions, inventory, staff, and tournaments — all pre-loaded", color: "#a78bfa" },
+              { icon: Clock, title: "Fresh every day", desc: "The demo resets every 24 hours, so you can experiment freely without breaking anything", color: "#4ade80" },
+              { icon: Eye, title: "See everything", desc: "Every module, every report, every feature — try it all before you commit to a plan", color: "#f97316" },
             ].map(({ icon: Icon, title, desc, color }) => (
               <div key={title} style={{ ...S.panelGlass, padding: 24, borderRadius: 20 }}>
                 <div style={{
@@ -1172,12 +1249,13 @@ const Landing = () => {
         </div>
       </section>
 
-      {/* ── Infrastructure ───────────────────────────────────────────────── */}
-      <section style={{ padding: "80px 24px", position: "relative" }}>
-        <GlowOrb color="#22d3ee" size={450} top="20%" right="-5%" opacity={0.08} />
+      {/* ── Pain Points: Before / After ──────────────────────────────────── */}
+      <section id="pain-points" style={{ padding: "80px 24px", position: "relative" }}>
+        <GlowOrb color="#fb7185" size={450} top="10%" left="-8%" opacity={0.08} />
+        <GlowOrb color="#22d3ee" size={350} top="60%" right="-5%" opacity={0.06} />
 
-        <div style={{ maxWidth: 1160, margin: "0 auto" }}>
-          <SectionLabel>Infrastructure &amp; payments</SectionLabel>
+        <div style={{ maxWidth: 1000, margin: "0 auto" }}>
+          <SectionLabel>Sound familiar?</SectionLabel>
           <h2 style={{
             fontFamily: "'Poppins', sans-serif",
             fontSize: "clamp(1.8rem, 3.5vw, 3rem)",
@@ -1187,64 +1265,220 @@ const Landing = () => {
             marginBottom: 16,
             color: "#f7f8ff",
           }}>
-            Built for real-world club operations
+            Real problems club owners<br />deal with every day
           </h2>
+          <p style={{ textAlign: "center" as const, color: "#8d96b3", fontSize: 16, maxWidth: 580, margin: "0 auto 56px", lineHeight: 1.6 }}>
+            If you recognise even two of these, Cuetronix will pay for itself in the first month.
+          </p>
 
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 48, alignItems: "start", marginTop: 56 }} className="infra-grid">
-            {/* Architecture bullets */}
-            <div>
-              <h3 style={{ color: "#a78bfa", fontSize: 14, fontWeight: 700, letterSpacing: "0.08em", marginBottom: 24 }}>
-                ARCHITECTURE PRINCIPLES
-              </h3>
-              {[
-                { icon: Lock, title: "Tenant-isolated data", desc: "Row-level security with Supabase RLS, JWT claims, and per-tenant workspace isolation." },
-                { icon: Globe, title: "Global subdomain routing", desc: "Public pages, customer portal, and app shell routed across slug.app.cuetronix.com subdomains with tenant-aware theming." },
-                { icon: CreditCard, title: "Regional payment flexibility", desc: "Stripe for international, Razorpay for South Asia, Square for additional flows — configured per platform vs tenant use case." },
-                { icon: Zap, title: "Edge-deployed performance", desc: "Vercel edge functions with Cloudflare CDN, targeting 99.9% uptime and 2.5-second SPA shell loads." },
-                { icon: Shield, title: "Enterprise-grade security", desc: "Sentry error monitoring, PostHog analytics, Upstash Redis rate limiting, and Resend for transactional email." },
-              ].map((item) => {
-                const Icon = item.icon;
-                return (
-                  <div key={item.title} style={{ display: "flex", gap: 16, marginBottom: 24 }}>
+          <div style={{ display: "flex", flexDirection: "column" as const, gap: 16 }}>
+            {PAIN_POINTS.map((pp) => (
+              <div key={pp.pain} style={{
+                ...S.panelGlass,
+                borderRadius: 18,
+                padding: "24px 28px",
+                display: "grid",
+                gridTemplateColumns: "1fr auto 1fr",
+                gap: 24,
+                alignItems: "center",
+              }} className="pain-row">
+                <div style={{ display: "flex", alignItems: "flex-start", gap: 14 }}>
+                  <div style={{
+                    width: 36, height: 36, borderRadius: 10,
+                    background: "rgba(251,113,133,0.12)", border: "1px solid rgba(251,113,133,0.25)",
+                    display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
+                  }}>
+                    <AlertTriangle size={16} color="#fb7185" />
+                  </div>
+                  <div>
+                    <div style={{ color: "#fb7185", fontSize: 10, fontWeight: 700, letterSpacing: "0.08em", marginBottom: 4 }}>THE PROBLEM</div>
+                    <div style={{ color: "#f7f8ff", fontSize: 14, fontWeight: 600, lineHeight: 1.5 }}>{pp.pain}</div>
+                  </div>
+                </div>
+
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "center" }}>
+                  <ArrowRight size={20} color="#7c3aed" />
+                </div>
+
+                <div style={{ display: "flex", alignItems: "flex-start", gap: 14 }}>
+                  <div style={{
+                    width: 36, height: 36, borderRadius: 10,
+                    background: "rgba(74,222,128,0.12)", border: "1px solid rgba(74,222,128,0.25)",
+                    display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
+                  }}>
+                    <ThumbsUp size={16} color="#4ade80" />
+                  </div>
+                  <div>
+                    <div style={{ color: "#4ade80", fontSize: 10, fontWeight: 700, letterSpacing: "0.08em", marginBottom: 4 }}>WITH CUETRONIX</div>
+                    <div style={{ color: "#f7f8ff", fontSize: 14, fontWeight: 600, lineHeight: 1.5 }}>{pp.solution}</div>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ── Testimonials ────────────────────────────────────────────────── */}
+      <section id="testimonials" style={{ padding: "80px 24px", background: "rgba(10,14,28,0.4)", position: "relative" }}>
+        <div style={S.sectionDivider} />
+        <GlowOrb color="#7c3aed" size={400} top="20%" right="10%" opacity={0.07} />
+
+        <div style={{ maxWidth: 1160, margin: "60px auto 0" }}>
+          <SectionLabel>Club owners love it</SectionLabel>
+          <h2 style={{
+            fontFamily: "'Poppins', sans-serif",
+            fontSize: "clamp(1.8rem, 3.5vw, 3rem)",
+            fontWeight: 800,
+            textAlign: "center" as const,
+            letterSpacing: "-0.025em",
+            marginBottom: 16,
+            color: "#f7f8ff",
+          }}>
+            Hear from clubs already<br />running on Cuetronix
+          </h2>
+          <p style={{ textAlign: "center" as const, color: "#8d96b3", fontSize: 16, maxWidth: 560, margin: "0 auto 56px", lineHeight: 1.6 }}>
+            From single-venue pool halls to multi-location snooker chains — here's what our club owners say.
+          </p>
+
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: 20 }}>
+            {TESTIMONIALS.map((t) => (
+              <div key={t.name} style={{
+                ...S.panelGlass,
+                padding: 28,
+                borderRadius: 22,
+                display: "flex",
+                flexDirection: "column" as const,
+                justifyContent: "space-between",
+              }}>
+                <div>
+                  <Quote size={28} color={t.color} style={{ opacity: 0.3, marginBottom: 16 }} />
+                  <p style={{ color: "#e0e4f0", fontSize: 14, lineHeight: 1.7, marginBottom: 20 }}>
+                    "{t.quote}"
+                  </p>
+                </div>
+
+                <div>
+                  <div style={{
+                    background: `${t.color}15`,
+                    border: `1px solid ${t.color}30`,
+                    borderRadius: 10,
+                    padding: "8px 14px",
+                    marginBottom: 18,
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: 6,
+                  }}>
+                    <TrendingUp size={13} color={t.color} />
+                    <span style={{ color: t.color, fontSize: 12, fontWeight: 700 }}>{t.stat}</span>
+                  </div>
+
+                  <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
                     <div style={{
-                      width: 40,
-                      height: 40,
-                      borderRadius: 12,
-                      background: "rgba(124,58,237,0.12)",
-                      border: "1px solid rgba(124,58,237,0.25)",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      flexShrink: 0,
+                      width: 40, height: 40, borderRadius: 12,
+                      background: `linear-gradient(135deg, ${t.color}, ${t.color}88)`,
+                      display: "flex", alignItems: "center", justifyContent: "center",
+                      fontSize: 14, fontWeight: 800, color: "#fff",
                     }}>
-                      <Icon size={18} color="#a78bfa" />
+                      {t.avatar}
                     </div>
                     <div>
-                      <div style={{ color: "#f7f8ff", fontWeight: 600, fontSize: 15, marginBottom: 4 }}>{item.title}</div>
-                      <div style={{ color: "#8d96b3", fontSize: 13, lineHeight: 1.5 }}>{item.desc}</div>
+                      <div style={{ color: "#f7f8ff", fontSize: 14, fontWeight: 700 }}>{t.name}</div>
+                      <div style={{ color: "#8d96b3", fontSize: 12 }}>{t.role}</div>
+                      <div style={{ color: "#6b7394", fontSize: 11 }}>{t.location}</div>
                     </div>
                   </div>
-                );
-              })}
-            </div>
+                </div>
+              </div>
+            ))}
+          </div>
 
-            {/* Stack cards */}
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-              {INFRA_STACK.map((s) => {
-                const Icon = s.icon;
-                return (
-                  <div key={s.name} style={{
-                    ...S.panelGlass,
-                    padding: "18px 16px",
-                    borderRadius: 16,
-                  }}>
-                    <Icon size={20} color="#22d3ee" style={{ marginBottom: 10 }} />
-                    <div style={{ color: "#f7f8ff", fontSize: 14, fontWeight: 700, marginBottom: 4 }}>{s.name}</div>
-                    <div style={{ color: "#8d96b3", fontSize: 12 }}>{s.desc}</div>
-                  </div>
-                );
-              })}
+          {/* Rating strip */}
+          <div style={{
+            display: "flex", justifyContent: "center", alignItems: "center", gap: 12,
+            marginTop: 48, padding: "16px 24px",
+            background: "rgba(255,255,255,0.03)",
+            border: "1px solid rgba(255,255,255,0.06)",
+            borderRadius: 14, width: "fit-content", margin: "48px auto 0",
+          }}>
+            <div style={{ display: "flex", gap: 3 }}>
+              {[1,2,3,4,5].map((i) => <Star key={i} size={16} fill="#fbbf24" color="#fbbf24" />)}
             </div>
+            <span style={{ color: "#fbbf24", fontSize: 15, fontWeight: 800 }}>4.9</span>
+            <span style={{ color: "#8d96b3", fontSize: 13 }}>average rating from club owners</span>
+          </div>
+        </div>
+      </section>
+
+      {/* ── Why Snooker & Pool Clubs Choose Cuetronix ─────────────────── */}
+      <section style={{ padding: "80px 24px", position: "relative" }}>
+        <GlowOrb color="#22d3ee" size={400} top="30%" left="-5%" opacity={0.07} />
+
+        <div style={{ maxWidth: 1000, margin: "0 auto" }}>
+          <SectionLabel>Why cuetronix</SectionLabel>
+          <h2 style={{
+            fontFamily: "'Poppins', sans-serif",
+            fontSize: "clamp(1.8rem, 3.5vw, 3rem)",
+            fontWeight: 800,
+            textAlign: "center" as const,
+            letterSpacing: "-0.025em",
+            marginBottom: 56,
+            color: "#f7f8ff",
+          }}>
+            Built specifically for cue-sport venues
+          </h2>
+
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: 20 }}>
+            {[
+              {
+                icon: Timer, color: "#7c3aed",
+                title: "Made for timed sessions",
+                desc: "Unlike generic POS systems, Cuetronix understands that your revenue is time-based. Every table has a live timer, per-minute or per-hour pricing, and automatic bill calculation.",
+              },
+              {
+                icon: Globe, color: "#22d3ee",
+                title: "Your brand, not ours",
+                desc: "Upload your logo, pick your colours, and every page your customers see — bookings, receipts, the portal — is branded as your club. On Pro plans, even our name disappears.",
+              },
+              {
+                icon: Users, color: "#f97316",
+                title: "Built for regulars",
+                desc: "Cue-sport clubs thrive on regulars. That's why loyalty points, member offers, birthday rewards, and a customer portal aren't add-ons — they're baked right in.",
+              },
+              {
+                icon: Trophy, color: "#fbbf24",
+                title: "Tournaments are first-class",
+                desc: "Weekly 8-ball tournaments, league nights, snooker championships — create brackets, handle registrations, collect entry fees, and publish results, all from one screen.",
+              },
+              {
+                icon: CreditCard, color: "#4ade80",
+                title: "Payments that work in your country",
+                desc: "Razorpay for India, Stripe internationally, UPI, cards, wallets — your customers pay however they prefer, and it all flows into your reports automatically.",
+              },
+              {
+                icon: Bot, color: "#a78bfa",
+                title: "AI that actually helps",
+                desc: "Not a gimmick — our AI analyses your actual data and says things like 'Thursday evenings have 40% unused capacity — consider a happy hour promotion on Tables 3-5.'",
+              },
+            ].map(({ icon: Icon, color, title, desc }) => (
+              <div key={title} style={{
+                ...S.panelGlass,
+                padding: 28,
+                borderRadius: 20,
+              }}>
+                <div style={{
+                  width: 48, height: 48, borderRadius: 14,
+                  background: `${color}18`, border: `1px solid ${color}35`,
+                  display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 18,
+                }}>
+                  <Icon size={22} color={color} />
+                </div>
+                <h3 style={{ color: "#f7f8ff", fontSize: 17, fontWeight: 700, marginBottom: 10, fontFamily: "'Poppins', sans-serif" }}>
+                  {title}
+                </h3>
+                <p style={{ color: "#8d96b3", fontSize: 14, lineHeight: 1.65 }}>{desc}</p>
+              </div>
+            ))}
           </div>
         </div>
       </section>
@@ -1264,10 +1498,10 @@ const Landing = () => {
             marginBottom: 16,
             color: "#f7f8ff",
           }}>
-            Launch your club workspace<br />in minutes
+            Your club goes digital<br />in under 5 minutes
           </h2>
           <p style={{ color: "#8d96b3", fontSize: 16, maxWidth: 520, margin: "0 auto 48px", lineHeight: 1.7 }}>
-            Start with friction-light onboarding — configure your brand, invite staff, and go from signup to first session without the overhead of traditional venue software.
+            Sign up, add your tables, set your pricing — and you're ready to start your first session. No consultants, no training, no IT team required.
           </p>
 
           <div style={{
@@ -1287,9 +1521,9 @@ const Landing = () => {
             <div style={{ position: "relative", zIndex: 1 }}>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 24, marginBottom: 40 }}>
                 {[
-                  { step: "01", title: "Sign up", desc: "Create your account in 60 seconds" },
-                  { step: "02", title: "Configure", desc: "Brand, staff, stations, products" },
-                  { step: "03", title: "Go live", desc: "Accept sessions and bookings today" },
+                  { step: "01", title: "Sign up", desc: "Name, email, done — takes 60 seconds" },
+                  { step: "02", title: "Set up your club", desc: "Add tables, pricing, menu & staff" },
+                  { step: "03", title: "Start earning", desc: "First session tracked, first booking in" },
                 ].map((s) => (
                   <div key={s.step} style={{ textAlign: "center" as const }}>
                     <div style={{
@@ -1332,7 +1566,7 @@ const Landing = () => {
       {/* ── FAQ ──────────────────────────────────────────────────────────── */}
       <section style={{ padding: "80px 24px", position: "relative" }}>
         <div style={{ maxWidth: 800, margin: "0 auto" }}>
-          <SectionLabel>Common questions</SectionLabel>
+          <SectionLabel>Questions from club owners</SectionLabel>
           <h2 style={{
             fontFamily: "'Poppins', sans-serif",
             fontSize: "clamp(1.6rem, 3vw, 2.5rem)",
@@ -1342,7 +1576,7 @@ const Landing = () => {
             marginBottom: 48,
             color: "#f7f8ff",
           }}>
-            Frequently asked questions
+            Got questions? We've heard<br />them all before
           </h2>
           <div style={{ display: "flex", flexDirection: "column" as const, gap: 10 }}>
             {FAQS.map((faq) => <FAQItem key={faq.q} faq={faq} />)}
@@ -1372,7 +1606,7 @@ const Landing = () => {
                 <span style={{ fontFamily: "'Poppins', sans-serif", fontWeight: 800, fontSize: 20, color: "#f7f8ff" }}>Cuetronix</span>
               </div>
               <p style={{ color: "#8d96b3", fontSize: 13, lineHeight: 1.7, marginBottom: 16, maxWidth: 260 }}>
-                The operating system for modern gaming clubs — sessions, billing, bookings, staff, and every customer touchpoint in one branded platform.
+                The all-in-one platform for snooker, pool, and 8-ball clubs — table sessions, bookings, loyalty, staff, and everything in between.
               </p>
               <div style={{
                 display: "inline-flex",
@@ -1416,16 +1650,16 @@ const Landing = () => {
               ))}
             </div>
 
-            {/* Column 3 – Platform */}
+            {/* Column 3 – Resources */}
             <div>
-              <div style={{ color: "#f7f8ff", fontSize: 13, fontWeight: 700, marginBottom: 18, letterSpacing: "0.06em" }}>PLATFORM</div>
+              <div style={{ color: "#f7f8ff", fontSize: 13, fontWeight: 700, marginBottom: 18, letterSpacing: "0.06em" }}>RESOURCES</div>
               {[
-                { label: "Multi-tenant Architecture", href: "#features" },
-                { label: "White-label Theming", href: "#whitelabel" },
-                { label: "Payments", href: "#" },
-                { label: "Security", href: "#" },
-                { label: "Demo Environment", href: "#demo" },
-                { label: "API", href: "#" },
+                { label: "How it helps your club", href: "#pain-points" },
+                { label: "Testimonials", href: "#testimonials" },
+                { label: "Branding & customisation", href: "#whitelabel" },
+                { label: "Live demo", href: "#demo" },
+                { label: "FAQ", href: "#" },
+                { label: "Blog", href: "#" },
               ].map((l) => (
                 <a key={l.label} href={l.href} style={{ display: "block", color: "#8d96b3", fontSize: 13, marginBottom: 10, textDecoration: "none" }}
                   onMouseEnter={(e) => (e.currentTarget.style.color = "#f7f8ff")}
